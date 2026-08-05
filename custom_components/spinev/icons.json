@@ -1,0 +1,74 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "load_balancing": {
+        "default": "mdi:scale-balance"
+      },
+      "session_suspended": {
+        "default": "mdi:pause-circle-outline"
+      }
+    },
+    "button": {
+      "apply_config": {
+        "default": "mdi:content-save-check-outline"
+      },
+      "refresh": {
+        "default": "mdi:refresh"
+      },
+      "sync_clock": {
+        "default": "mdi:clock-check-outline"
+      }
+    },
+    "number": {
+      "current_limit": {
+        "default": "mdi:current-ac"
+      },
+      "random_delay": {
+        "default": "mdi:timer-sand"
+      },
+      "timezone_hours": {
+        "default": "mdi:map-clock-outline"
+      },
+      "timezone_minutes": {
+        "default": "mdi:map-clock-outline"
+      }
+    },
+    "sensor": {
+      "current_limit": {
+        "default": "mdi:current-ac"
+      },
+      "grid_current_limit": {
+        "default": "mdi:transmission-tower"
+      },
+      "lifetime_duration": {
+        "default": "mdi:timer-outline"
+      },
+      "load_balancing_priority": {
+        "default": "mdi:sort-numeric-variant"
+      },
+      "load_balancing_source": {
+        "default": "mdi:scale-balance"
+      },
+      "max_grid_power": {
+        "default": "mdi:transmission-tower"
+      },
+      "reduce_current_offset": {
+        "default": "mdi:arrow-down-thin-circle-outline"
+      },
+      "safe_current_offset": {
+        "default": "mdi:arrow-expand-vertical"
+      },
+      "session_duration": {
+        "default": "mdi:timer-play-outline"
+      },
+      "state": {
+        "default": "mdi:ev-station"
+      }
+    },
+    "switch": {
+      "charging": {
+        "default": "mdi:ev-plug-type2"
+      }
+    }
+  }
+}

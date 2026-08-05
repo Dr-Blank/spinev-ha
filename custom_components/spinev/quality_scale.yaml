@@ -1,0 +1,86 @@
+rules:
+  # Bronze
+  action-setup:
+    status: exempt
+    comment: No custom actions.
+  appropriate-polling: done
+  brands: todo
+  common-modules: done
+  config-flow-test-coverage: todo
+  config-flow: done
+  dependency-transparency: done
+  docs-actions:
+    status: exempt
+    comment: No custom actions.
+  docs-conditions:
+    status: exempt
+    comment: No conditions.
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: done
+  docs-triggers:
+    status: exempt
+    comment: No triggers.
+  entity-event-setup:
+    status: exempt
+    comment: Entities take their state from the coordinator only.
+  entity-unique-id: done
+  has-entity-name: done
+  runtime-data: done
+  test-before-configure: done
+  test-before-setup: done
+  unique-config-entry: done
+
+  # Silver
+  action-exceptions: done
+  config-entry-unloading: done
+  docs-configuration-parameters: done
+  docs-installation-parameters:
+    status: exempt
+    comment: Setup is discovery driven and takes no parameters.
+  entity-unavailable: done
+  integration-owner: done
+  log-when-unavailable: done
+  parallel-updates: done
+  reauthentication-flow:
+    status: exempt
+    comment: The charger uses no credential the user supplies.
+  test-coverage: todo
+
+  # Gold
+  devices: done
+  diagnostics: done
+  discovery-update-info:
+    status: exempt
+    comment: The Bluetooth address is the unique id and does not change.
+  discovery: done
+  docs-data-update: todo
+  docs-examples: todo
+  docs-known-limitations: done
+  docs-supported-devices: done
+  docs-supported-functions: todo
+  docs-troubleshooting: done
+  docs-use-cases: todo
+  dynamic-devices:
+    status: exempt
+    comment: One config entry is one charger.
+  entity-category: done
+  entity-device-class: done
+  entity-disabled-by-default: done
+  entity-translations: done
+  exception-translations: done
+  icon-translations: done
+  reconfiguration-flow: todo
+  repair-issues:
+    status: exempt
+    comment: Nothing needs user repair.
+  stale-devices:
+    status: exempt
+    comment: One config entry is one charger.
+
+  # Platinum
+  async-dependency: done
+  inject-websession:
+    status: exempt
+    comment: Bluetooth only, no HTTP.
+  strict-typing: done

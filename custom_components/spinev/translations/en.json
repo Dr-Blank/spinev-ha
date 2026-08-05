@@ -1,0 +1,174 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "Device is already configured",
+      "already_in_progress": "This is already being configured. Finish the existing configuration before starting again.",
+      "cannot_connect": "Failed to connect. The charger accepts one Bluetooth client at a time, so close the phone app and try again.",
+      "no_devices_found": "No devices found on the network",
+      "not_supported": "This Bluetooth device is not a Spin EV charger."
+    },
+    "flow_title": "{name}",
+    "step": {
+      "bluetooth_confirm": {
+        "description": "Do you want to set up {name}?"
+      },
+      "user": {
+        "data": {
+          "address": "Device"
+        },
+        "data_description": {
+          "address": "The chargers discovered over Bluetooth, listed by serial number."
+        },
+        "description": "Choose a device to set up"
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "charging": {
+        "name": "Charging"
+      },
+      "load_balancing": {
+        "name": "Load balancing"
+      },
+      "session_suspended": {
+        "name": "Session suspended"
+      },
+      "vehicle_connected": {
+        "name": "Vehicle connected"
+      }
+    },
+    "button": {
+      "apply_config": {
+        "name": "Apply config"
+      },
+      "refresh": {
+        "name": "Refresh"
+      },
+      "sync_clock": {
+        "name": "Sync clock"
+      }
+    },
+    "number": {
+      "current_limit": {
+        "name": "Current limit"
+      },
+      "random_delay": {
+        "name": "Start delay"
+      },
+      "timezone_hours": {
+        "name": "Timezone offset hours"
+      },
+      "timezone_minutes": {
+        "name": "Timezone offset minutes"
+      }
+    },
+    "sensor": {
+      "current_limit": {
+        "name": "Current limit"
+      },
+      "grid_current_limit": {
+        "name": "Grid current limit"
+      },
+      "lifetime_duration": {
+        "name": "Lifetime charging time"
+      },
+      "lifetime_energy": {
+        "name": "Lifetime energy"
+      },
+      "load_balancing_priority": {
+        "name": "Load balancing priority"
+      },
+      "load_balancing_source": {
+        "name": "Load balancing source"
+      },
+      "max_grid_power": {
+        "name": "Maximum grid power"
+      },
+      "reduce_current_offset": {
+        "name": "Current reduction step"
+      },
+      "safe_current_offset": {
+        "name": "Grid current headroom"
+      },
+      "session_duration": {
+        "name": "Session time"
+      },
+      "session_energy": {
+        "name": "Session energy"
+      },
+      "state": {
+        "name": "State",
+        "state": {
+          "available": "Available",
+          "booting": "Starting up",
+          "charging": "Charging",
+          "ev_suspended": "Paused by vehicle",
+          "evse_suspended": "Paused by charger",
+          "fault": "Fault",
+          "finishing": "Finishing",
+          "idle": "Idle",
+          "starting": "Starting",
+          "unavailable": "Unavailable"
+        }
+      }
+    },
+    "switch": {
+      "charging": {
+        "name": "Charging"
+      }
+    }
+  },
+  "exceptions": {
+    "cannot_read": {
+      "message": "Could not read the charger: {error}"
+    },
+    "cannot_write": {
+      "message": "Could not write to the charger: {error}"
+    },
+    "charger_booting": {
+      "message": "The charger is still starting up and will not accept commands yet."
+    },
+    "charger_busy": {
+      "message": "The charger will not change its current limit during a session. Stop charging first, then apply the change."
+    },
+    "command_rejected": {
+      "message": "The charger refused the command. The Bluetooth password is probably wrong."
+    },
+    "device_not_found": {
+      "message": "Could not find the charger with address {address}. It may be out of range of every Bluetooth adapter and proxy."
+    },
+    "no_vehicle_connected": {
+      "message": "No vehicle is connected, so charging cannot be started."
+    }
+  },
+  "options": {
+    "error": {
+      "idle_interval_too_short": "The idle interval should be at least as long as the charging interval."
+    },
+    "step": {
+      "init": {
+        "data": {
+          "charging_interval": "Poll interval while charging",
+          "connection_mode": "Connection mode",
+          "idle_interval": "Poll interval while idle"
+        },
+        "data_description": {
+          "charging_interval": "How often to read the charger while a vehicle is charging.",
+          "connection_mode": "Reconnect each poll keeps the phone app usable between polls, at the cost of about a second of extra latency per poll and more reconnect churn. Stay connected polls faster and fails less often, but locks the phone app out for as long as the integration is enabled.",
+          "idle_interval": "How often to read the charger while no vehicle is charging. Keep this long, especially with reconnect each poll, so the phone app gets long uncontested stretches."
+        },
+        "description": "The charger accepts one Bluetooth client at a time, so Home Assistant and the phone app cannot both be connected.",
+        "title": "Connection and polling"
+      }
+    }
+  },
+  "selector": {
+    "connection_mode": {
+      "options": {
+        "per_poll": "Reconnect each poll",
+        "persistent": "Stay connected"
+      }
+    }
+  }
+}
