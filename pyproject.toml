@@ -12,6 +12,19 @@ dev = [
     "ruff==0.16.0",
     "pytest",
     "pytest-homeassistant-custom-component",
+    "pytest-cov",
+    # Requirements of the bluetooth integration this one depends on, which
+    # pytest-homeassistant-custom-component does not pull in itself.
+    "bleak==3.0.2",
+    "bleak-retry-connector==4.6.1",
+    "bluetooth-adapters==2.4.0",
+    "bluetooth-auto-recovery==1.6.4",
+    "bluetooth-data-tools==1.29.18",
+    "dbus-fast==5.0.22",
+    "habluetooth==6.26.5",
+    "aiousbwatcher==1.1.2",
+    "serialx==1.8.2",
+    "aioesphomeapi",
 ]
 
 [tool.mypy]
@@ -241,13 +254,17 @@ mark-parentheses = false
 [tool.ruff.lint.isort]
 force-sort-within-sections = true
 known-first-party = ["homeassistant"]
+# The integration and its tests sort after homeassistant, as they do in core.
+known-local-folder = ["custom_components", "tests"]
 combine-as-imports = true
 split-on-trailing-comma = false
 
 [tool.ruff.lint.per-file-ignores]
 "custom_components/*/*" = ["TID252"]
 "custom_components/**" = ["PTH"]
-"tests/**" = ["PTH"]
+# TID251 bans importing "tests" from inside Home Assistant core; here the test
+# package importing its own helpers is the normal thing to do.
+"tests/**" = ["PTH", "TID251"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 25
@@ -255,3 +272,7 @@ max-complexity = 25
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 property-decorators = ["propcache.api.cached_property"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

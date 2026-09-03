@@ -1,0 +1,54 @@
+# serializer version: 1
+# name: test_diagnostics
+  dict({
+    'config': dict({
+      'confirmed': dict({
+        'current_limit_a': 32.0,
+        'random_delay_s': 0,
+        'timezone_hours': 5,
+        'timezone_minutes': 30,
+      }),
+      'pending': dict({
+        'current_limit_a': 32.0,
+        'random_delay_s': 0,
+        'timezone_hours': 5,
+        'timezone_minutes': 30,
+      }),
+    }),
+    'entry': dict({
+      'data': dict({
+        'address': '**REDACTED**',
+        'serial': '**REDACTED**',
+      }),
+      'options': dict({
+        'charging_interval': 60,
+        'connection_mode': 'per_poll',
+        'idle_interval': 300,
+      }),
+    }),
+    'load_balancing': dict({
+      'enabled': True,
+      'grid_current_limit_a': 63.0,
+      'max_grid_power_w': 14000.0,
+      'priority': 0,
+      'reduce_current_offset_a': 2.0,
+      'safe_current_offset_a': 5.0,
+      'source': 1,
+    }),
+    'status': dict({
+      'alarms': list([
+      ]),
+      'current_a': 32.0,
+      'current_limit_a': 32.0,
+      'firmware_version': '35.24.4.32',
+      'lifetime_energy_kwh': 1234.5,
+      'lifetime_seconds': 360000,
+      'power_w': 7360.0,
+      'session_energy_kwh': 12.5,
+      'session_seconds': 3600,
+      'state': 'CHARGING',
+      'state_value': 4,
+      'voltage_v': 230.0,
+    }),
+  })
+# ---

@@ -1,6 +1,10 @@
 # Spin EV Charger for Home Assistant
 
-Read an Exicom Spin EV charger over Bluetooth LE, locally, with no vendor
+[![HACS: custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz/docs/faq/custom_repositories)
+[![Release](https://img.shields.io/github/v/release/Dr-Blank/spinev-ha?display_name=tag)](https://github.com/Dr-Blank/spinev-ha/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+Control an Exicom Spin EV charger over Bluetooth LE, locally, with no vendor
 cloud and no account.
 
 The charger is reached through any Bluetooth adapter or ESPHome Bluetooth
@@ -57,12 +61,44 @@ during a session, the same as its own app does, so stop charging first.
 
 ## Installation
 
-1. Add `https://github.com/Dr-Blank/spinev-ha` to HACS as a custom repository
-   of type Integration.
-2. Install **Spin EV Charger** and restart Home Assistant.
-3. The charger is picked up by Bluetooth discovery and appears under
-   **Settings > Devices & services**. If it does not, add it with
-   **Add integration > Spin EV Charger**.
+### HACS (recommended)
+
+This is a custom repository, so HACS has to be told about it once. After that
+it updates like any other HACS integration.
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Dr-Blank&repository=spinev-ha&category=integration)
+
+Click the badge above, then **Download**. It fills the repository in for you.
+
+If the badge does not work, add it by hand:
+
+1. **HACS > ⋮ (top right) > Custom repositories**.
+2. Repository `https://github.com/Dr-Blank/spinev-ha`, type **Integration**,
+   then **Add**.
+3. Search HACS for **Spin EV Charger** and **Download** it.
+
+Either way, **restart Home Assistant** afterwards — custom integrations are
+only loaded at startup.
+
+### Manual
+
+Copy `custom_components/spinev` into your Home Assistant `config/custom_components/`
+directory and restart Home Assistant.
+
+### Setup
+
+The charger is picked up by Bluetooth discovery and appears under
+**Settings > Devices & services**. If it does not, add it with
+**Add integration > Spin EV Charger**.
+
+[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=spinev)
+
+Nothing else is needed: no account and no API key.
+
+### Updating
+
+HACS shows an update when a new release is tagged. Download it and restart
+Home Assistant.
 
 ## Configuration
 
@@ -93,7 +129,6 @@ the link is released when the charger or the Bluetooth proxy times it out.
 
 ## Known limitations
 
-- Read only. Start, stop and current limit control are not exposed yet.
 - Only the first alarm bank is decoded.
 - Charging session history stored on the charger is not exposed.
 - Charger states above Charging exist but have no confirmed meaning, and are
