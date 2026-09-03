@@ -136,12 +136,7 @@ the link is released when the charger or the Bluetooth proxy times it out.
 
 ## Troubleshooting
 
-**The charger is never discovered.** Discovery needs a connectable adapter or
-proxy in range. Check under **Settings > Devices & services > Bluetooth** that
-the charger's address is being seen.
-
-**Setup fails with "Failed to connect".** Something else holds the charger.
-Close the phone app fully and retry.
+**The charger is never discovered**, or **setup fails with "Failed to connect".** The charger must be powered on, nothing else (the phone app, another Home Assistant) may be connected to it, and Home Assistant needs a Bluetooth adapter or an ESPHome Bluetooth proxy in range of the charger. See [docs/connection.md](docs/connection.md) for the full checklist. Under **Settings > Devices & services > Bluetooth**, the **⋮ > Advertisement monitor** shows whether the charger's advertisement is reaching Home Assistant at all.
 
 **Entities go unavailable during charging.** The link is being dropped, most
 often because of range or because the phone app took it. Move a Bluetooth
