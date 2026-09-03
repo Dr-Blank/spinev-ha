@@ -34,6 +34,7 @@ from .const import (
     DEFAULT_CHARGING_INTERVAL,
     DEFAULT_CONNECTION_MODE,
     DEFAULT_IDLE_INTERVAL,
+    DOCS_CONNECTION_URL,
     DOMAIN,
     MAX_POLL_INTERVAL,
     MIN_POLL_INTERVAL,
@@ -190,7 +191,10 @@ class SpinEvConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._discovered[info.address] = serial
 
         if not self._discovered:
-            return self.async_abort(reason="no_devices_found")
+            return self.async_abort(
+                reason="no_devices_found",
+                description_placeholders={"docs_url": DOCS_CONNECTION_URL},
+            )
 
         return self.async_show_form(
             step_id="user",
@@ -205,7 +209,10 @@ class SpinEvConfigFlow(ConfigFlow, domain=DOMAIN):
             self.hass, address, connectable=True
         )
         if ble_device is None:
-            return self.async_abort(reason="cannot_connect")
+            return self.async_abort(
+                reason="cannot_connect",
+                description_placeholders={"docs_url": DOCS_CONNECTION_URL},
+            )
 
         charger = SpinEvCharger(ble_device, client_class=HaBleakClientWrapper)
         try:
@@ -213,7 +220,10 @@ class SpinEvConfigFlow(ConfigFlow, domain=DOMAIN):
                 await charger.async_get_state_value()
         except SpinEvError as err:
             _LOGGER.debug("Could not reach charger %s: %s", serial, err)
-            return self.async_abort(reason="cannot_connect")
+            return self.async_abort(
+                reason="cannot_connect",
+                description_placeholders={"docs_url": DOCS_CONNECTION_URL},
+            )
 
         return self.async_create_entry(
             title=serial,

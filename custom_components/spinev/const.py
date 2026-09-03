@@ -38,3 +38,8 @@ INITIAL_INTERVAL: Final = timedelta(seconds=DEFAULT_CHARGING_INTERVAL)
 REBOOT_SETTLE: Final = timedelta(seconds=45)
 
 ATTR_ALARMS: Final = "alarms"
+
+#: Setup troubleshooting guide, linked from config-flow abort messages.
+DOCS_CONNECTION_URL: Final = (
+    "https://github.com/Dr-Blank/spinev-ha/blob/main/docs/connection.md"
+)

@@ -3,8 +3,8 @@
     "abort": {
       "already_configured": "Device is already configured",
       "already_in_progress": "This is already being configured. Finish the existing configuration before starting again.",
-      "cannot_connect": "Failed to connect. The charger accepts one Bluetooth client at a time, so close the phone app and try again. See [Setup can't find or reach the charger](https://github.com/Dr-Blank/spinev-ha/blob/main/docs/connection.md).",
-      "no_devices_found": "No Spin EV charger was found over Bluetooth. Check that the charger is powered on, that no phone app is connected to it (it accepts one Bluetooth client at a time), and that Home Assistant has a Bluetooth adapter or an ESPHome Bluetooth proxy in range of the charger. See [Setup can't find or reach the charger](https://github.com/Dr-Blank/spinev-ha/blob/main/docs/connection.md) for the full checklist.",
+      "cannot_connect": "Failed to connect. The charger accepts one Bluetooth client at a time, so close the phone app and try again. See [Setup can't find or reach the charger]({docs_url}).",
+      "no_devices_found": "No Spin EV charger was found over Bluetooth. Check that the charger is powered on, that no phone app is connected to it (it accepts one Bluetooth client at a time), and that Home Assistant has a Bluetooth adapter or an ESPHome Bluetooth proxy in range of the charger. See [Setup can't find or reach the charger]({docs_url}) for the full checklist.",
       "not_supported": "This Bluetooth device is not a Spin EV charger."
     },
     "flow_title": "{name}",
