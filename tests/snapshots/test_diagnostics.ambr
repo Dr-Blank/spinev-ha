@@ -1,29 +1,13 @@
 # serializer version: 1
 # name: test_diagnostics
   dict({
-    'config': dict({
-      'confirmed': dict({
-        'current_limit_a': 32.0,
-        'random_delay_s': 0,
-        'timezone_hours': 5,
-        'timezone_minutes': 30,
-      }),
-      'pending': dict({
-        'current_limit_a': 32.0,
-        'random_delay_s': 0,
-        'timezone_hours': 5,
-        'timezone_minutes': 30,
-      }),
-    }),
     'entry': dict({
       'data': dict({
         'address': '**REDACTED**',
         'serial': '**REDACTED**',
       }),
       'options': dict({
-        'charging_interval': 60,
         'connection_mode': 'per_poll',
-        'idle_interval': 300,
       }),
     }),
     'load_balancing': dict({
@@ -35,6 +19,7 @@
       'safe_current_offset_a': 5.0,
       'source': 1,
     }),
+    'random_delay_s': 0,
     'status': dict({
       'alarms': list([
       ]),

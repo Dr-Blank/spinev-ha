@@ -21,7 +21,6 @@ from .const import (
     RANDOM_DELAY,
     SERIAL,
     STATUS,
-    TIMEZONE,
 )
 from custom_components.spinev.const import DOMAIN
 
@@ -76,7 +75,6 @@ def mock_charger() -> Generator[AsyncMock]:
     charger = AsyncMock()
     charger.is_connected = True
     charger.async_get_status.return_value = STATUS
-    charger.async_get_timezone.return_value = TIMEZONE
     charger.async_get_random_delay.return_value = RANDOM_DELAY
     charger.async_get_load_balancing.return_value = LOAD_BALANCING
     charger.async_get_state_value.return_value = 4
@@ -107,6 +105,14 @@ def mock_ble_device(ble_device: BLEDevice) -> Generator[MagicMock]:
         ) as mock_lookup,
         patch(
             "custom_components.spinev.coordinator.close_stale_connections_by_address"
+        ),
+        patch(
+            "homeassistant.components.bluetooth.async_address_reachability_diagnostics",
+            return_value="No Bluetooth adapter or proxy is in range of it.",
+        ),
+        patch(
+            "homeassistant.components.bluetooth.async_request_active_scan",
+            new_callable=AsyncMock,
         ),
     ):
         yield mock_lookup

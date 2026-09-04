@@ -9,12 +9,6 @@
       }
     },
     "button": {
-      "apply_config": {
-        "default": "mdi:content-save-check-outline"
-      },
-      "refresh": {
-        "default": "mdi:refresh"
-      },
       "sync_clock": {
         "default": "mdi:clock-check-outline"
       }
@@ -25,18 +19,9 @@
       },
       "random_delay": {
         "default": "mdi:timer-sand"
-      },
-      "timezone_hours": {
-        "default": "mdi:map-clock-outline"
-      },
-      "timezone_minutes": {
-        "default": "mdi:map-clock-outline"
       }
     },
     "sensor": {
-      "current_limit": {
-        "default": "mdi:current-ac"
-      },
       "grid_current_limit": {
         "default": "mdi:transmission-tower"
       },

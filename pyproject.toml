@@ -265,6 +265,8 @@ split-on-trailing-comma = false
 # TID251 bans importing "tests" from inside Home Assistant core; here the test
 # package importing its own helpers is the normal thing to do.
 "tests/**" = ["PTH", "TID251"]
+# Developer scripts print their progress to the terminal.
+"script/**" = ["T201"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 25

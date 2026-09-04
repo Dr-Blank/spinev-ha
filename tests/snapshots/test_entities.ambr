@@ -254,106 +254,6 @@
     'state': 'on',
   })
 # ---
-# name: test_entities[button][button.123456789012_apply_config-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': list([
-      None,
-    ]),
-    'area_id': None,
-    'capabilities': None,
-    'config_entry_id': <ANY>,
-    'config_subentry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'button',
-    'entity_category': <EntityCategory.CONFIG: 'config'>,
-    'entity_id': 'button.123456789012_apply_config',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'object_id_base': 'Apply config',
-    'options': dict({
-    }),
-    'original_device_class': None,
-    'original_icon': None,
-    'original_name': 'Apply config',
-    'platform': 'spinev',
-    'previous_unique_id': None,
-    'suggested_object_id': None,
-    'supported_features': 0,
-    'translation_key': 'apply_config',
-    'unique_id': 'AA:BB:CC:DD:EE:FF_apply_config',
-    'unit_of_measurement': None,
-  })
-# ---
-# name: test_entities[button][button.123456789012_apply_config-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: '123456789012 Apply config',
-    }),
-    'context': <ANY>,
-    'entity_id': 'button.123456789012_apply_config',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': 'unknown',
-  })
-# ---
-# name: test_entities[button][button.123456789012_refresh-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': list([
-      None,
-    ]),
-    'area_id': None,
-    'capabilities': None,
-    'config_entry_id': <ANY>,
-    'config_subentry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'button',
-    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
-    'entity_id': 'button.123456789012_refresh',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'object_id_base': 'Refresh',
-    'options': dict({
-    }),
-    'original_device_class': None,
-    'original_icon': None,
-    'original_name': 'Refresh',
-    'platform': 'spinev',
-    'previous_unique_id': None,
-    'suggested_object_id': None,
-    'supported_features': 0,
-    'translation_key': 'refresh',
-    'unique_id': 'AA:BB:CC:DD:EE:FF_refresh',
-    'unit_of_measurement': None,
-  })
-# ---
-# name: test_entities[button][button.123456789012_refresh-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: '123456789012 Refresh',
-    }),
-    'context': <ANY>,
-    'entity_id': 'button.123456789012_refresh',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': 'unknown',
-  })
-# ---
 # name: test_entities[button][button.123456789012_restart-entry]
   EntityRegistryEntrySnapshot({
     'aliases': list([
@@ -464,7 +364,7 @@
     'capabilities': dict({
       <NumberEntityCapabilityAttribute.MAX: 'max'>: 32.0,
       <NumberEntityCapabilityAttribute.MIN: 'min'>: 6.0,
-      <NumberEntityCapabilityAttribute.MODE: 'mode'>: <NumberMode.BOX: 'box'>,
+      <NumberEntityCapabilityAttribute.MODE: 'mode'>: <NumberMode.SLIDER: 'slider'>,
       <NumberEntityCapabilityAttribute.STEP: 'step'>: 1,
     }),
     'config_entry_id': <ANY>,
@@ -503,7 +403,7 @@
       <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: '123456789012 Current limit',
       <NumberEntityCapabilityAttribute.MAX: 'max'>: 32.0,
       <NumberEntityCapabilityAttribute.MIN: 'min'>: 6.0,
-      <NumberEntityCapabilityAttribute.MODE: 'mode'>: <NumberMode.BOX: 'box'>,
+      <NumberEntityCapabilityAttribute.MODE: 'mode'>: <NumberMode.SLIDER: 'slider'>,
       <NumberEntityCapabilityAttribute.STEP: 'step'>: 1,
       <EntityStateAttribute.UNIT_OF_MEASUREMENT: 'unit_of_measurement'>: <UnitOfElectricCurrent.AMPERE: 'A'>,
     }),
@@ -573,125 +473,7 @@
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
-    'state': '0',
-  })
-# ---
-# name: test_entities[number][number.123456789012_timezone_offset_hours-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': list([
-      None,
-    ]),
-    'area_id': None,
-    'capabilities': dict({
-      <NumberEntityCapabilityAttribute.MAX: 'max'>: 23,
-      <NumberEntityCapabilityAttribute.MIN: 'min'>: 0,
-      <NumberEntityCapabilityAttribute.MODE: 'mode'>: <NumberMode.BOX: 'box'>,
-      <NumberEntityCapabilityAttribute.STEP: 'step'>: 1,
-    }),
-    'config_entry_id': <ANY>,
-    'config_subentry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'number',
-    'entity_category': <EntityCategory.CONFIG: 'config'>,
-    'entity_id': 'number.123456789012_timezone_offset_hours',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'object_id_base': 'Timezone offset hours',
-    'options': dict({
-    }),
-    'original_device_class': None,
-    'original_icon': None,
-    'original_name': 'Timezone offset hours',
-    'platform': 'spinev',
-    'previous_unique_id': None,
-    'suggested_object_id': None,
-    'supported_features': 0,
-    'translation_key': 'timezone_hours',
-    'unique_id': 'AA:BB:CC:DD:EE:FF_timezone_hours',
-    'unit_of_measurement': None,
-  })
-# ---
-# name: test_entities[number][number.123456789012_timezone_offset_hours-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: '123456789012 Timezone offset hours',
-      <NumberEntityCapabilityAttribute.MAX: 'max'>: 23,
-      <NumberEntityCapabilityAttribute.MIN: 'min'>: 0,
-      <NumberEntityCapabilityAttribute.MODE: 'mode'>: <NumberMode.BOX: 'box'>,
-      <NumberEntityCapabilityAttribute.STEP: 'step'>: 1,
-    }),
-    'context': <ANY>,
-    'entity_id': 'number.123456789012_timezone_offset_hours',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': '5',
-  })
-# ---
-# name: test_entities[number][number.123456789012_timezone_offset_minutes-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': list([
-      None,
-    ]),
-    'area_id': None,
-    'capabilities': dict({
-      <NumberEntityCapabilityAttribute.MAX: 'max'>: 59,
-      <NumberEntityCapabilityAttribute.MIN: 'min'>: 0,
-      <NumberEntityCapabilityAttribute.MODE: 'mode'>: <NumberMode.BOX: 'box'>,
-      <NumberEntityCapabilityAttribute.STEP: 'step'>: 1,
-    }),
-    'config_entry_id': <ANY>,
-    'config_subentry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'number',
-    'entity_category': <EntityCategory.CONFIG: 'config'>,
-    'entity_id': 'number.123456789012_timezone_offset_minutes',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'object_id_base': 'Timezone offset minutes',
-    'options': dict({
-    }),
-    'original_device_class': None,
-    'original_icon': None,
-    'original_name': 'Timezone offset minutes',
-    'platform': 'spinev',
-    'previous_unique_id': None,
-    'suggested_object_id': None,
-    'supported_features': 0,
-    'translation_key': 'timezone_minutes',
-    'unique_id': 'AA:BB:CC:DD:EE:FF_timezone_minutes',
-    'unit_of_measurement': None,
-  })
-# ---
-# name: test_entities[number][number.123456789012_timezone_offset_minutes-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: '123456789012 Timezone offset minutes',
-      <NumberEntityCapabilityAttribute.MAX: 'max'>: 59,
-      <NumberEntityCapabilityAttribute.MIN: 'min'>: 0,
-      <NumberEntityCapabilityAttribute.MODE: 'mode'>: <NumberMode.BOX: 'box'>,
-      <NumberEntityCapabilityAttribute.STEP: 'step'>: 1,
-    }),
-    'context': <ANY>,
-    'entity_id': 'number.123456789012_timezone_offset_minutes',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': '30',
+    'state': '0.0',
   })
 # ---
 # name: test_entities[sensor][sensor.123456789012_current-entry]
@@ -721,7 +503,7 @@
     'object_id_base': 'Current',
     'options': dict({
       'sensor': dict({
-        'suggested_display_precision': 2,
+        'suggested_display_precision': 1,
       }),
     }),
     'original_device_class': <SensorDeviceClass.CURRENT: 'current'>,
@@ -746,64 +528,6 @@
     }),
     'context': <ANY>,
     'entity_id': 'sensor.123456789012_current',
-    'last_changed': <ANY>,
-    'last_reported': <ANY>,
-    'last_updated': <ANY>,
-    'state': '32.0',
-  })
-# ---
-# name: test_entities[sensor][sensor.123456789012_current_limit-entry]
-  EntityRegistryEntrySnapshot({
-    'aliases': list([
-      None,
-    ]),
-    'area_id': None,
-    'capabilities': dict({
-      <SensorEntityCapabilityAttribute.STATE_CLASS: 'state_class'>: <SensorStateClass.MEASUREMENT: 'measurement'>,
-    }),
-    'config_entry_id': <ANY>,
-    'config_subentry_id': <ANY>,
-    'device_class': None,
-    'device_id': <ANY>,
-    'disabled_by': None,
-    'domain': 'sensor',
-    'entity_category': <EntityCategory.DIAGNOSTIC: 'diagnostic'>,
-    'entity_id': 'sensor.123456789012_current_limit',
-    'has_entity_name': True,
-    'hidden_by': None,
-    'icon': None,
-    'id': <ANY>,
-    'labels': set({
-    }),
-    'name': None,
-    'object_id_base': 'Current limit',
-    'options': dict({
-      'sensor': dict({
-        'suggested_display_precision': 2,
-      }),
-    }),
-    'original_device_class': <SensorDeviceClass.CURRENT: 'current'>,
-    'original_icon': None,
-    'original_name': 'Current limit',
-    'platform': 'spinev',
-    'previous_unique_id': None,
-    'suggested_object_id': None,
-    'supported_features': 0,
-    'translation_key': 'current_limit',
-    'unique_id': 'AA:BB:CC:DD:EE:FF_current_limit',
-    'unit_of_measurement': <UnitOfElectricCurrent.AMPERE: 'A'>,
-  })
-# ---
-# name: test_entities[sensor][sensor.123456789012_current_limit-state]
-  StateSnapshot({
-    'attributes': ReadOnlyDict({
-      <EntityStateAttribute.DEVICE_CLASS: 'device_class'>: 'current',
-      <EntityStateAttribute.FRIENDLY_NAME: 'friendly_name'>: '123456789012 Current limit',
-      <SensorEntityCapabilityAttribute.STATE_CLASS: 'state_class'>: <SensorStateClass.MEASUREMENT: 'measurement'>,
-      <EntityStateAttribute.UNIT_OF_MEASUREMENT: 'unit_of_measurement'>: <UnitOfElectricCurrent.AMPERE: 'A'>,
-    }),
-    'context': <ANY>,
-    'entity_id': 'sensor.123456789012_current_limit',
     'last_changed': <ANY>,
     'last_reported': <ANY>,
     'last_updated': <ANY>,
@@ -1529,7 +1253,7 @@
     'object_id_base': 'Voltage',
     'options': dict({
       'sensor': dict({
-        'suggested_display_precision': 0,
+        'suggested_display_precision': 1,
       }),
     }),
     'original_device_class': <SensorDeviceClass.VOLTAGE: 'voltage'>,

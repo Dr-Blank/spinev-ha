@@ -17,23 +17,30 @@ from homeassistant.exceptions import HomeAssistantError
 
 from .const import IDLE_STATUS, STATUS
 from custom_components.spinev.const import (
+    CHARGING_INTERVAL,
     CONF_CONNECTION_MODE,
-    DEFAULT_CHARGING_INTERVAL,
-    DEFAULT_IDLE_INTERVAL,
+    IDLE_INTERVAL,
     MODE_PERSISTENT,
     REBOOT_SETTLE,
+    WRITE_DEBOUNCE,
 )
 
 CHARGING_SWITCH = "switch.123456789012_charging"
 STATE_SENSOR = "sensor.123456789012_state"
 CURRENT_LIMIT = "number.123456789012_current_limit"
-APPLY_CONFIG = "button.123456789012_apply_config"
-REFRESH = "button.123456789012_refresh"
+START_DELAY = "number.123456789012_start_delay"
+LOAD_BALANCING = "binary_sensor.123456789012_load_balancing"
 
 
-async def test_a_per_poll_connection_is_released(
-    hass: HomeAssistant, init_integration: MockConfigEntry, mock_charger: AsyncMock
-) -> None:
+async def async_settle(hass: HomeAssistant, freezer: FrozenDateTimeFactory) -> None:
+    """Let a debounced number write reach the charger."""
+    freezer.tick(WRITE_DEBOUNCE + timedelta(seconds=1))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+
+@pytest.mark.usefixtures("init_integration")
+async def test_a_per_poll_connection_is_released(mock_charger: AsyncMock) -> None:
     """The default mode hands the charger back between polls."""
     mock_charger.async_disconnect.assert_awaited()
 
@@ -42,7 +49,7 @@ async def test_a_per_poll_connection_is_released(
 async def test_a_persistent_connection_is_held(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_charger: AsyncMock
 ) -> None:
-    """Persistent mode keeps the link, and the phone app out."""
+    """Persistent mode keeps the link, and everyone else out."""
     mock_config_entry.add_to_hass(hass)
     hass.config_entries.async_update_entry(
         mock_config_entry,
@@ -57,8 +64,8 @@ async def test_a_persistent_connection_is_held(
 @pytest.mark.parametrize(
     ("status", "expected"),
     [
-        pytest.param(STATUS, DEFAULT_CHARGING_INTERVAL, id="charging"),
-        pytest.param(IDLE_STATUS, DEFAULT_IDLE_INTERVAL, id="idle"),
+        pytest.param(STATUS, CHARGING_INTERVAL, id="charging"),
+        pytest.param(IDLE_STATUS, IDLE_INTERVAL, id="idle"),
     ],
 )
 @pytest.mark.usefixtures("mock_ble_device")
@@ -67,7 +74,7 @@ async def test_the_poll_interval_follows_the_session(
     mock_config_entry: MockConfigEntry,
     mock_charger: AsyncMock,
     status: object,
-    expected: int,
+    expected: timedelta,
 ) -> None:
     """Polling is fast during a session and slow while idle."""
     mock_charger.async_get_status.return_value = status
@@ -75,12 +82,12 @@ async def test_the_poll_interval_follows_the_session(
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
-    assert mock_config_entry.runtime_data.update_interval == timedelta(seconds=expected)
+    assert mock_config_entry.runtime_data.update_interval == expected
 
 
+@pytest.mark.usefixtures("init_integration")
 async def test_a_failed_poll_makes_entities_unavailable(
     hass: HomeAssistant,
-    init_integration: MockConfigEntry,
     mock_charger: AsyncMock,
     freezer: FrozenDateTimeFactory,
 ) -> None:
@@ -88,50 +95,41 @@ async def test_a_failed_poll_makes_entities_unavailable(
     assert hass.states.get(STATE_SENSOR).state != STATE_UNAVAILABLE
 
     mock_charger.async_get_status.side_effect = SpinEvError("gone")
-    freezer.tick(timedelta(seconds=DEFAULT_CHARGING_INTERVAL + 1))
+    freezer.tick(CHARGING_INTERVAL + timedelta(seconds=1))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
     assert hass.states.get(STATE_SENSOR).state == STATE_UNAVAILABLE
 
 
-async def test_the_extra_config_registers_are_only_read_when_asked(
+@pytest.mark.usefixtures("init_integration")
+async def test_the_settings_registers_are_read_only_at_setup(
     hass: HomeAssistant,
-    init_integration: MockConfigEntry,
     mock_charger: AsyncMock,
     freezer: FrozenDateTimeFactory,
 ) -> None:
-    """Extra config registers are read on the first poll, not on every one.
+    """The start delay and load balancing cost eight extra round trips.
 
-    Timezone, start delay and load balancing together cost nine round trips,
-    and re-reading the editable ones would overwrite an unapplied edit.
+    Only this integration and the phone app change them, so they are read once
+    at setup rather than on every poll.
     """
-    assert mock_charger.async_get_timezone.await_count == 1
+    assert mock_charger.async_get_random_delay.await_count == 1
+    assert mock_charger.async_get_load_balancing.await_count == 1
 
-    freezer.tick(timedelta(seconds=DEFAULT_CHARGING_INTERVAL + 1))
+    freezer.tick(CHARGING_INTERVAL + timedelta(seconds=1))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
     assert mock_charger.async_get_status.await_count == 2
-    assert mock_charger.async_get_timezone.await_count == 1
+    assert mock_charger.async_get_random_delay.await_count == 1
+    assert mock_charger.async_get_load_balancing.await_count == 1
 
 
-async def test_refresh_rereads_the_config(
-    hass: HomeAssistant, init_integration: MockConfigEntry, mock_charger: AsyncMock
-) -> None:
-    """Refresh throws the config draft away and asks the charger again."""
-    await hass.services.async_call(
-        "button", "press", {"entity_id": REFRESH}, blocking=True
-    )
-
-    assert mock_charger.async_get_timezone.await_count == 2
-
-
+@pytest.mark.usefixtures("mock_ble_device")
 async def test_a_charger_without_load_balancing_still_works(
     hass: HomeAssistant,
     mock_config_entry: MockConfigEntry,
     mock_charger: AsyncMock,
-    mock_ble_device: AsyncMock,
 ) -> None:
     """Not every model answers on those registers, and the rest still should."""
     mock_charger.async_get_load_balancing.side_effect = SpinEvError("no such register")
@@ -140,23 +138,13 @@ async def test_a_charger_without_load_balancing_still_works(
     await hass.async_block_till_done()
 
     assert mock_config_entry.runtime_data.load_balancing is None
+    assert hass.states.get(LOAD_BALANCING) is None
     assert hass.states.get(STATE_SENSOR).state == "charging"
 
 
-async def test_applying_an_unchanged_config_writes_nothing(
-    hass: HomeAssistant, init_integration: MockConfigEntry, mock_charger: AsyncMock
-) -> None:
-    """Nothing was edited, so the charger is left alone rather than restarted."""
-    await hass.services.async_call(
-        "button", "press", {"entity_id": APPLY_CONFIG}, blocking=True
-    )
-
-    mock_charger.async_commit.assert_not_awaited()
-    mock_charger.async_set_current_limit.assert_not_awaited()
-
-
-async def test_a_current_limit_change_is_not_committed(
-    hass: HomeAssistant, init_integration: MockConfigEntry, mock_charger: AsyncMock
+@pytest.mark.usefixtures("init_integration")
+async def test_a_current_limit_change_is_written_but_not_committed(
+    hass: HomeAssistant, mock_charger: AsyncMock, freezer: FrozenDateTimeFactory
 ) -> None:
     """Committing a current limit would restart the charger for no reason."""
     await hass.services.async_call(
@@ -165,78 +153,38 @@ async def test_a_current_limit_change_is_not_committed(
         {"entity_id": CURRENT_LIMIT, "value": 16},
         blocking=True,
     )
-    await hass.services.async_call(
-        "button", "press", {"entity_id": APPLY_CONFIG}, blocking=True
-    )
+    await async_settle(hass, freezer)
 
     mock_charger.async_set_current_limit.assert_awaited_once_with(16.0, commit=False)
     mock_charger.async_commit.assert_not_awaited()
 
 
-@pytest.mark.parametrize(
-    ("number", "value", "method", "expected_args"),
-    [
-        pytest.param(
-            "number.123456789012_timezone_offset_hours",
-            1,
-            "async_set_timezone",
-            (1, 30),
-            id="timezone",
-        ),
-        pytest.param(
-            "number.123456789012_start_delay",
-            600,
-            "async_set_random_delay",
-            (600,),
-            id="start_delay",
-        ),
-    ],
-)
-async def test_a_committed_change_is_reread_after_the_restart(
+@pytest.mark.usefixtures("init_integration")
+async def test_a_start_delay_change_is_reread_after_the_restart(
     hass: HomeAssistant,
-    init_integration: MockConfigEntry,
     mock_charger: AsyncMock,
     freezer: FrozenDateTimeFactory,
-    number: str,
-    value: int,
-    method: str,
-    expected_args: tuple[int, ...],
 ) -> None:
     """A commit restarts the charger, so the re-read waits for it to come back."""
     await hass.services.async_call(
         "number",
         "set_value",
-        {"entity_id": number, "value": value},
+        {"entity_id": START_DELAY, "value": 600},
         blocking=True,
     )
-    await hass.services.async_call(
-        "button", "press", {"entity_id": APPLY_CONFIG}, blocking=True
-    )
+    await async_settle(hass, freezer)
 
-    getattr(mock_charger, method).assert_awaited_once_with(*expected_args, commit=False)
-    mock_charger.async_commit.assert_awaited_once()
-    assert mock_charger.async_get_timezone.await_count == 1
+    mock_charger.async_set_random_delay.assert_awaited_once_with(600)
+    # The charger is still restarting, so the new value comes from the write
+    # rather than from a re-read that would only fail.
+    assert hass.states.get(START_DELAY).state == "600.0"
 
+    polls_before = mock_charger.async_get_status.await_count
     freezer.tick(REBOOT_SETTLE + timedelta(seconds=1))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    assert mock_charger.async_get_timezone.await_count == 2
-
-
-async def test_setting_a_number_does_not_touch_the_charger(
-    hass: HomeAssistant, init_integration: MockConfigEntry, mock_charger: AsyncMock
-) -> None:
-    """The numbers are a draft; only Apply config sends them."""
-    await hass.services.async_call(
-        "number",
-        "set_value",
-        {"entity_id": CURRENT_LIMIT, "value": 16},
-        blocking=True,
-    )
-
-    mock_charger.async_set_current_limit.assert_not_awaited()
-    assert hass.states.get(CURRENT_LIMIT).state == "16.0"
+    assert mock_charger.async_get_status.await_count > polls_before
 
 
 @pytest.mark.parametrize(
@@ -249,9 +197,9 @@ async def test_setting_a_number_does_not_touch_the_charger(
         pytest.param(SpinEvError("no reply"), "cannot_write", id="unreachable"),
     ],
 )
+@pytest.mark.usefixtures("init_integration")
 async def test_a_rejected_write_is_reported(
     hass: HomeAssistant,
-    init_integration: MockConfigEntry,
     mock_charger: AsyncMock,
     error: Exception,
     translation_key: str,
@@ -286,7 +234,7 @@ async def test_a_held_link_that_drops_is_rebuilt(
     mock_charger.is_connected = False
     mock_charger.async_disconnect.reset_mock()
 
-    freezer.tick(timedelta(seconds=DEFAULT_CHARGING_INTERVAL + 1))
+    freezer.tick(CHARGING_INTERVAL + timedelta(seconds=1))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
@@ -294,16 +242,16 @@ async def test_a_held_link_that_drops_is_rebuilt(
     assert hass.states.get(STATE_SENSOR).state == "charging"
 
 
+@pytest.mark.usefixtures("init_integration")
 async def test_a_poll_fails_when_the_charger_goes_out_of_range(
     hass: HomeAssistant,
-    init_integration: MockConfigEntry,
     mock_ble_device: AsyncMock,
     freezer: FrozenDateTimeFactory,
 ) -> None:
     """An address the Bluetooth manager stops resolving fails the poll."""
     mock_ble_device.return_value = None
 
-    freezer.tick(timedelta(seconds=DEFAULT_CHARGING_INTERVAL + 1))
+    freezer.tick(CHARGING_INTERVAL + timedelta(seconds=1))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
 

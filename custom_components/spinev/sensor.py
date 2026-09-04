@@ -24,7 +24,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
-from .coordinator import SpinEvConfigEntry
+from .coordinator import SpinEvConfigEntry, SpinEvCoordinator
 from .entity import SpinEvEntity
 
 PARALLEL_UPDATES = 0
@@ -63,6 +63,7 @@ SENSORS: tuple[SpinEvSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.POWER,
         native_unit_of_measurement=UnitOfPower.WATT,
         state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=0,
         value_fn=lambda status: status.power_w,
     ),
     SpinEvSensorEntityDescription(
@@ -70,6 +71,7 @@ SENSORS: tuple[SpinEvSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.VOLTAGE,
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=1,
         entity_registry_enabled_default=False,
         value_fn=lambda status: status.voltage_v,
     ),
@@ -78,16 +80,8 @@ SENSORS: tuple[SpinEvSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.CURRENT,
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=1,
         value_fn=lambda status: status.current_a,
-    ),
-    SpinEvSensorEntityDescription(
-        key="current_limit",
-        translation_key="current_limit",
-        device_class=SensorDeviceClass.CURRENT,
-        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
-        state_class=SensorStateClass.MEASUREMENT,
-        entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda status: status.current_limit_a,
     ),
     SpinEvSensorEntityDescription(
         key="session_energy",
@@ -95,6 +89,7 @@ SENSORS: tuple[SpinEvSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.ENERGY,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        suggested_display_precision=2,
         value_fn=lambda status: status.session_energy_kwh,
     ),
     SpinEvSensorEntityDescription(
@@ -112,6 +107,7 @@ SENSORS: tuple[SpinEvSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.ENERGY,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         state_class=SensorStateClass.TOTAL_INCREASING,
+        suggested_display_precision=2,
         value_fn=lambda status: status.lifetime_energy_kwh,
     ),
     SpinEvSensorEntityDescription(
@@ -126,6 +122,8 @@ SENSORS: tuple[SpinEvSensorEntityDescription, ...] = (
     ),
 )
 
+# Read once at setup and fixed for the life of the config entry, so these
+# carry no state class: statistics over a constant are noise.
 LOAD_BALANCING_SENSORS: tuple[SpinEvLoadBalancingSensorEntityDescription, ...] = (
     SpinEvLoadBalancingSensorEntityDescription(
         key="grid_current_limit",
@@ -185,15 +183,15 @@ async def async_setup_entry(
 ) -> None:
     """Set up the charger sensors."""
     coordinator = entry.runtime_data
-    async_add_entities(
-        [
-            *(SpinEvSensor(coordinator, description) for description in SENSORS),
-            *(
-                SpinEvLoadBalancingSensor(coordinator, description)
-                for description in LOAD_BALANCING_SENSORS
-            ),
-        ]
-    )
+    entities: list[SensorEntity] = [
+        SpinEvSensor(coordinator, description) for description in SENSORS
+    ]
+    if (config := coordinator.load_balancing) is not None:
+        entities.extend(
+            SpinEvLoadBalancingSensor(coordinator, description, config)
+            for description in LOAD_BALANCING_SENSORS
+        )
+    async_add_entities(entities)
 
 
 class SpinEvSensor(SpinEvEntity, SensorEntity):
@@ -203,32 +201,26 @@ class SpinEvSensor(SpinEvEntity, SensorEntity):
 
     @property
     @override
-    def available(self) -> bool:
-        """Return True while the charger reports this value."""
-        return super().available and self.native_value is not None
-
-    @property
-    @override
     def native_value(self) -> StateType:
         """Return the value reported by the charger."""
         return self.entity_description.value_fn(self.coordinator.data)
 
 
 class SpinEvLoadBalancingSensor(SpinEvEntity, SensorEntity):
-    """A load balancing setting read from the charger."""
+    """A load balancing setting as the charger reported it at setup.
+
+    The settings are read once per config entry, so the value is resolved here
+    rather than on every state write.
+    """
 
     entity_description: SpinEvLoadBalancingSensorEntityDescription
 
-    @property
-    @override
-    def available(self) -> bool:
-        """Return True once the load balancing settings have been read."""
-        return super().available and self.coordinator.load_balancing is not None
-
-    @property
-    @override
-    def native_value(self) -> StateType:
-        """Return the setting as the charger last reported it."""
-        if (config := self.coordinator.load_balancing) is None:
-            return None
-        return self.entity_description.value_fn(config)
+    def __init__(
+        self,
+        coordinator: SpinEvCoordinator,
+        description: SpinEvLoadBalancingSensorEntityDescription,
+        config: LoadBalancingConfig,
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, description)
+        self._attr_native_value = description.value_fn(config)

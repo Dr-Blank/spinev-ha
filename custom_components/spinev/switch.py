@@ -36,12 +36,6 @@ class SpinEvChargingSwitch(SpinEvEntity, SwitchEntity):
 
     @property
     @override
-    def available(self) -> bool:
-        """Return True while the charger reports a state."""
-        return super().available and self.coordinator.data.state is not None
-
-    @property
-    @override
     def is_on(self) -> bool | None:
         """Return True while a session is open.
 
@@ -75,13 +69,9 @@ class SpinEvChargingSwitch(SpinEvEntity, SwitchEntity):
                 translation_domain=DOMAIN,
                 translation_key="no_vehicle_connected",
             )
-        await self.coordinator.async_execute(
-            lambda charger: charger.async_start_charging()
-        )
+        await self.coordinator.async_start_charging()
 
     @override
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Stop charging."""
-        await self.coordinator.async_execute(
-            lambda charger: charger.async_stop_charging()
-        )
+        await self.coordinator.async_stop_charging()

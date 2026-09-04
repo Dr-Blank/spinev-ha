@@ -64,18 +64,29 @@ async def test_setup_retries_when_the_charger_is_not_seen(
     assert mock_config_entry.state is ConfigEntryState.SETUP_RETRY
 
 
+@pytest.mark.parametrize(
+    "failing_read",
+    [
+        pytest.param("async_get_random_delay", id="settings"),
+        pytest.param("async_get_status", id="status"),
+    ],
+)
 @pytest.mark.usefixtures("mock_ble_device")
 async def test_setup_retries_when_the_first_read_fails(
-    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_charger: AsyncMock
+    hass: HomeAssistant,
+    mock_config_entry: MockConfigEntry,
+    mock_charger: AsyncMock,
+    failing_read: str,
 ) -> None:
-    """A charger that does not answer the first poll is a retry."""
-    mock_charger.async_get_status.side_effect = SpinEvError("no reply")
+    """A charger that does not answer on setup is a retry, not a failure."""
+    getattr(mock_charger, failing_read).side_effect = SpinEvError("no reply")
     mock_config_entry.add_to_hass(hass)
 
     await hass.config_entries.async_setup(mock_config_entry.entry_id)
     await hass.async_block_till_done()
 
     assert mock_config_entry.state is ConfigEntryState.SETUP_RETRY
+    mock_charger.async_disconnect.assert_awaited()
 
 
 @pytest.mark.usefixtures("mock_charger", "mock_ble_device")

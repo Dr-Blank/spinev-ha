@@ -2,28 +2,32 @@ rules:
   # Bronze
   action-setup:
     status: exempt
-    comment: No custom actions.
+    comment: The integration does not register custom actions.
   appropriate-polling: done
-  brands: todo
+  brands:
+    status: todo
+    comment: |
+      Needs a home-assistant/brands pull request when the integration is
+      submitted to core.
   common-modules: done
-  config-flow-test-coverage: todo
+  config-flow-test-coverage: done
   config-flow: done
   dependency-transparency: done
   docs-actions:
     status: exempt
-    comment: No custom actions.
+    comment: The integration does not register custom actions.
   docs-conditions:
     status: exempt
-    comment: No conditions.
+    comment: The integration does not register conditions.
   docs-high-level-description: done
   docs-installation-instructions: done
   docs-removal-instructions: done
   docs-triggers:
     status: exempt
-    comment: No triggers.
+    comment: The integration does not register triggers.
   entity-event-setup:
     status: exempt
-    comment: Entities take their state from the coordinator only.
+    comment: Entities receive their updates through the shared coordinator.
   entity-unique-id: done
   has-entity-name: done
   runtime-data: done
@@ -32,7 +36,12 @@ rules:
   unique-config-entry: done
 
   # Silver
-  action-exceptions: done
+  action-exceptions:
+    status: done
+    comment: |
+      A number write is debounced, so it leaves after the action has returned
+      and its failure is logged rather than raised. The entity drops the value
+      it was showing, so the failure is still visible.
   config-entry-unloading: done
   docs-configuration-parameters: done
   docs-installation-parameters:
@@ -44,15 +53,19 @@ rules:
   parallel-updates: done
   reauthentication-flow:
     status: exempt
-    comment: The charger uses no credential the user supplies.
-  test-coverage: todo
+    comment: |
+      The charger has no credential the integration holds. It accepts commands
+      from any client that wins its single Bluetooth slot.
+  test-coverage: done
 
   # Gold
   devices: done
   diagnostics: done
   discovery-update-info:
     status: exempt
-    comment: The Bluetooth address is the unique id and does not change.
+    comment: |
+      The Bluetooth address is the unique ID and does not change, and the
+      charger advertises nothing else that setup stores.
   discovery: done
   docs-data-update: todo
   docs-examples: todo
@@ -63,24 +76,28 @@ rules:
   docs-use-cases: todo
   dynamic-devices:
     status: exempt
-    comment: One config entry is one charger.
+    comment: A config entry is one charger and never gains child devices.
   entity-category: done
   entity-device-class: done
   entity-disabled-by-default: done
   entity-translations: done
   exception-translations: done
   icon-translations: done
-  reconfiguration-flow: todo
+  reconfiguration-flow:
+    status: exempt
+    comment: |
+      The entry stores only the Bluetooth address, which is the unique ID and
+      cannot be reconfigured. The connection mode is an option instead.
   repair-issues:
     status: exempt
-    comment: Nothing needs user repair.
+    comment: Nothing the integration detects needs user repair.
   stale-devices:
     status: exempt
-    comment: One config entry is one charger.
+    comment: A config entry is one charger; removing the entry removes it.
 
   # Platinum
   async-dependency: done
   inject-websession:
     status: exempt
-    comment: Bluetooth only, no HTTP.
+    comment: The integration talks Bluetooth and opens no web session.
   strict-typing: done

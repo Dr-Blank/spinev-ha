@@ -30,12 +30,9 @@ single phase Spin Air. Three phase units report the same registers.
 | Current | Output current, in amps |
 | Voltage | Line voltage, disabled by default |
 | Current limit | The configured charging limit, adjustable |
-| Timezone offset hours / minutes | The charger's UTC offset, adjustable |
 | Start delay | Delay before charging starts, 0 to 1800s, adjustable |
-| Apply config | Button that sends the config values that were changed |
-| Sync clock | Button that sets the charger's clock to the current time |
+| Sync clock | Button that sets the charger's clock to Home Assistant's current time |
 | Restart | Button that restarts the charger, which clears a fault without cutting its power |
-| Refresh | Button that re-reads the charger now, discarding unapplied config edits. Diagnostic |
 | Load balancing | On while the charger shares its supply with the installation. Diagnostic |
 | Grid current limit | What the grid supply can deliver, in amps. Diagnostic |
 | Grid current headroom | Margin kept below the grid current limit. Diagnostic |
@@ -49,15 +46,19 @@ single phase Spin Air. Three phase units report the same registers.
 
 ### Changing configuration
 
-The config numbers are a draft. Nothing reaches the charger until **Apply
-config** is pressed, and only the values that actually changed are sent.
-**Refresh** re-reads the charger and throws the draft away.
+Both config numbers wait three seconds after the last change before they reach
+the charger, so dragging the current limit slider costs one Bluetooth write
+instead of one per step, and a value corrected straight after a misclick never
+leaves. The new value is shown while it is on its way, and reverts to what the
+charger reports if the write fails.
 
-Applying a timezone or start delay change **restarts the charger**, which ends
-any session in progress; the charger is left alone for 45 seconds afterwards
-and then re-read. A current limit on its own is not committed, so it takes
-effect without a restart — but the charger refuses a current limit change
-during a session, the same as its own app does, so stop charging first.
+**Start delay** is applied with a commit, which **restarts the charger** and
+ends any session in progress; the charger is left alone for 45 seconds
+afterwards and then re-read. **Sync clock** restarts it for the same reason.
+
+**Current limit** is not committed, so it takes effect without a restart — but
+the charger refuses a current limit change during a session, the same as its
+own app does, so stop charging first.
 
 ## Installation
 
@@ -112,13 +113,15 @@ two ways to hold the link:
 - **Stay connected** keeps the link open. Polls are faster and fail less, but
   the phone app cannot connect at all while the integration is enabled.
 
-Also configurable: the poll interval, separately for while a vehicle is
-charging (default 60s) and while idle (default 300s). The idle interval should
-stay at least as long as the charging interval — it exists to give the phone
-app long uncontested stretches when nothing needs watching closely. Each poll
+**Stay connected** also keeps anyone else in range from pairing with the
+charger, since it holds the only Bluetooth slot the charger has.
+
+The poll interval follows the charger: 60s while a vehicle is charging or
+paused mid-session, 300s while idle. The long idle interval exists to give the
+phone app uncontested stretches when nothing needs watching closely. Each poll
 reads about a dozen registers in sequence and takes roughly a second.
 
-Changing any option reloads the integration.
+Changing the connection mode reloads the integration.
 
 ## Removal
 

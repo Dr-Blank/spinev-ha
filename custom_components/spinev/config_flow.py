@@ -17,45 +17,21 @@ from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFl
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import callback
 from homeassistant.helpers.selector import (
-    NumberSelector,
-    NumberSelectorConfig,
-    NumberSelectorMode,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
 )
 
 from .const import (
-    CONF_CHARGING_INTERVAL,
     CONF_CONNECTION_MODE,
-    CONF_IDLE_INTERVAL,
     CONF_SERIAL,
     CONNECTION_MODES,
-    DEFAULT_CHARGING_INTERVAL,
     DEFAULT_CONNECTION_MODE,
-    DEFAULT_IDLE_INTERVAL,
-    DOCS_CONNECTION_URL,
     DOMAIN,
-    MAX_POLL_INTERVAL,
-    MIN_POLL_INTERVAL,
 )
 from .coordinator import SpinEvConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _interval_selector() -> NumberSelector:
-    """Build a bounded, whole-second interval selector."""
-    return NumberSelector(
-        NumberSelectorConfig(
-            min=MIN_POLL_INTERVAL,
-            max=MAX_POLL_INTERVAL,
-            step=30,
-            mode=NumberSelectorMode.BOX,
-            unit_of_measurement="s",
-        )
-    )
-
 
 OPTIONS_SCHEMA = vol.Schema(
     {
@@ -65,9 +41,7 @@ OPTIONS_SCHEMA = vol.Schema(
                 mode=SelectSelectorMode.LIST,
                 translation_key=CONF_CONNECTION_MODE,
             )
-        ),
-        vol.Required(CONF_CHARGING_INTERVAL): _interval_selector(),
-        vol.Required(CONF_IDLE_INTERVAL): _interval_selector(),
+        )
     }
 )
 
@@ -90,34 +64,20 @@ class SpinEvOptionsFlow(OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Choose how the Bluetooth link is held and how often to poll."""
-        errors: dict[str, str] = {}
-
+        """Choose how the Bluetooth link is held."""
         if user_input is not None:
-            if user_input[CONF_IDLE_INTERVAL] < user_input[CONF_CHARGING_INTERVAL]:
-                errors["base"] = "idle_interval_too_short"
-            else:
-                return self.async_create_entry(data=user_input)
+            return self.async_create_entry(data=user_input)
 
-        options = self.config_entry.options
         return self.async_show_form(
             step_id="init",
             data_schema=self.add_suggested_values_to_schema(
                 OPTIONS_SCHEMA,
-                user_input
-                or {
-                    CONF_CONNECTION_MODE: options.get(
+                {
+                    CONF_CONNECTION_MODE: self.config_entry.options.get(
                         CONF_CONNECTION_MODE, DEFAULT_CONNECTION_MODE
-                    ),
-                    CONF_CHARGING_INTERVAL: options.get(
-                        CONF_CHARGING_INTERVAL, DEFAULT_CHARGING_INTERVAL
-                    ),
-                    CONF_IDLE_INTERVAL: options.get(
-                        CONF_IDLE_INTERVAL, DEFAULT_IDLE_INTERVAL
-                    ),
+                    )
                 },
             ),
-            errors=errors,
         )
 
 
@@ -126,10 +86,11 @@ class SpinEvConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    _address: str
+    _serial: str
+
     def __init__(self) -> None:
         """Initialize the config flow."""
-        self._address: str | None = None
-        self._serial: str | None = None
         self._discovered: dict[str, str] = {}
 
     @staticmethod
@@ -160,11 +121,12 @@ class SpinEvConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Confirm a discovered charger."""
-        assert self._address is not None
-        assert self._serial is not None
-
         if user_input is not None:
-            return await self._async_create(self._address, self._serial)
+            if await self._async_charger_answers(self._address, self._serial):
+                return self._async_create(self._address, self._serial)
+            # There is nothing to correct on a confirm step, so a charger that
+            # will not answer ends the flow rather than looping on itself.
+            return self.async_abort(reason="cannot_connect")
 
         self._set_confirm_only()
         return self.async_show_form(
@@ -177,42 +139,46 @@ class SpinEvConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Pick a charger from the ones already seen."""
+        errors: dict[str, str] = {}
+
         if user_input is not None:
             address = user_input[CONF_ADDRESS]
+            serial = self._discovered[address]
             await self.async_set_unique_id(address, raise_on_progress=False)
             self._abort_if_unique_id_configured()
-            return await self._async_create(address, self._discovered[address])
+            if await self._async_charger_answers(address, serial):
+                return self._async_create(address, serial)
+            errors["base"] = "cannot_connect"
+        else:
+            # The charger only answers a connectable scan, and a passive-only
+            # adapter will not have it in range yet on the first pass.
+            await bluetooth.async_request_active_scan(self.hass)
 
-        current = self._async_current_ids(include_ignore=False)
-        for info in async_discovered_service_info(self.hass, connectable=True):
-            if info.address in current:
-                continue
-            if (serial := serial_from_name(info.name)) is not None:
-                self._discovered[info.address] = serial
+            current = self._async_current_ids(include_ignore=False)
+            for info in async_discovered_service_info(self.hass, connectable=True):
+                if info.address in current:
+                    continue
+                if (found := serial_from_name(info.name)) is not None:
+                    self._discovered[info.address] = found
 
-        if not self._discovered:
-            return self.async_abort(
-                reason="no_devices_found",
-                description_placeholders={"docs_url": DOCS_CONNECTION_URL},
-            )
+            if not self._discovered:
+                return self.async_abort(reason="no_devices_found")
 
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(
                 {vol.Required(CONF_ADDRESS): vol.In(self._discovered)}
             ),
+            errors=errors,
         )
 
-    async def _async_create(self, address: str, serial: str) -> ConfigFlowResult:
-        """Check the charger answers, then store it."""
+    async def _async_charger_answers(self, address: str, serial: str) -> bool:
+        """Return True if the charger is in range and replies to a read."""
         ble_device = bluetooth.async_ble_device_from_address(
             self.hass, address, connectable=True
         )
         if ble_device is None:
-            return self.async_abort(
-                reason="cannot_connect",
-                description_placeholders={"docs_url": DOCS_CONNECTION_URL},
-            )
+            return False
 
         charger = SpinEvCharger(ble_device, client_class=HaBleakClientWrapper)
         try:
@@ -220,17 +186,14 @@ class SpinEvConfigFlow(ConfigFlow, domain=DOMAIN):
                 await charger.async_get_state_value()
         except SpinEvError as err:
             _LOGGER.debug("Could not reach charger %s: %s", serial, err)
-            return self.async_abort(
-                reason="cannot_connect",
-                description_placeholders={"docs_url": DOCS_CONNECTION_URL},
-            )
+            return False
+        return True
 
+    @callback
+    def _async_create(self, address: str, serial: str) -> ConfigFlowResult:
+        """Store the charger."""
         return self.async_create_entry(
             title=serial,
             data={CONF_ADDRESS: address, CONF_SERIAL: serial},
-            options={
-                CONF_CONNECTION_MODE: DEFAULT_CONNECTION_MODE,
-                CONF_CHARGING_INTERVAL: DEFAULT_CHARGING_INTERVAL,
-                CONF_IDLE_INTERVAL: DEFAULT_IDLE_INTERVAL,
-            },
+            options={CONF_CONNECTION_MODE: DEFAULT_CONNECTION_MODE},
         )

@@ -16,9 +16,7 @@ from homeassistant.data_entry_flow import FlowResultType
 
 from .const import ADDRESS, ENTRY_DATA, ENTRY_OPTIONS, SERIAL
 from custom_components.spinev.const import (
-    CONF_CHARGING_INTERVAL,
     CONF_CONNECTION_MODE,
-    CONF_IDLE_INTERVAL,
     CONF_SERIAL,
     DOMAIN,
     MODE_PERSISTENT,
@@ -179,6 +177,36 @@ async def test_user_flow_skips_configured_chargers(
     assert result["reason"] == "no_devices_found"
 
 
+@pytest.mark.usefixtures("mock_ble_device")
+async def test_user_flow_when_the_charger_does_not_answer(
+    hass: HomeAssistant,
+    service_info: BluetoothServiceInfoBleak,
+    mock_charger: AsyncMock,
+) -> None:
+    """The picker comes back with an error so the charger can be tried again."""
+    mock_charger.async_get_state_value.side_effect = SpinEvError("busy")
+
+    with patch_discovered([service_info]):
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": SOURCE_USER}
+        )
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_ADDRESS: ADDRESS}
+        )
+
+        assert result["type"] is FlowResultType.FORM
+        assert result["step_id"] == "user"
+        assert result["errors"] == {"base": "cannot_connect"}
+
+        mock_charger.async_get_state_value.side_effect = None
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_ADDRESS: ADDRESS}
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["title"] == SERIAL
+
+
 async def test_options_flow(
     hass: HomeAssistant, init_integration: MockConfigEntry
 ) -> None:
@@ -189,36 +217,9 @@ async def test_options_flow(
     assert result["step_id"] == "init"
 
     result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
-        {
-            CONF_CONNECTION_MODE: MODE_PERSISTENT,
-            CONF_CHARGING_INTERVAL: 30,
-            CONF_IDLE_INTERVAL: 600,
-        },
+        result["flow_id"], {CONF_CONNECTION_MODE: MODE_PERSISTENT}
     )
     await hass.async_block_till_done()
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert init_integration.options == {
-        CONF_CONNECTION_MODE: MODE_PERSISTENT,
-        CONF_CHARGING_INTERVAL: 30,
-        CONF_IDLE_INTERVAL: 600,
-    }
-
-
-async def test_options_flow_rejects_a_short_idle_interval(
-    hass: HomeAssistant, init_integration: MockConfigEntry
-) -> None:
-    """Idling faster than charging defeats the point of the idle interval."""
-    result = await hass.config_entries.options.async_init(init_integration.entry_id)
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
-        {
-            CONF_CONNECTION_MODE: MODE_PERSISTENT,
-            CONF_CHARGING_INTERVAL: 300,
-            CONF_IDLE_INTERVAL: 60,
-        },
-    )
-
-    assert result["type"] is FlowResultType.FORM
-    assert result["errors"] == {"base": "idle_interval_too_short"}
+    assert init_integration.options == {CONF_CONNECTION_MODE: MODE_PERSISTENT}

@@ -13,7 +13,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from custom_components.spinev import PLATFORMS
+from custom_components.spinev.const import PLATFORMS
 
 
 @pytest.mark.parametrize("platform", PLATFORMS)

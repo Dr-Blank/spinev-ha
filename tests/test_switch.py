@@ -6,7 +6,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from spinev_ble import ChargerState, ChargerStatus
 
-from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNAVAILABLE
+from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 
@@ -26,8 +26,9 @@ CHARGING_SWITCH = "switch.123456789012_charging"
         pytest.param(ChargerState.EVSE_SUSPENDED, STATE_ON, id="evse_suspended"),
         pytest.param(ChargerState.FINISHING, STATE_OFF, id="finishing"),
         # A state this library does not recognise leaves the switch with
-        # nothing to report, so it goes unavailable rather than guessing.
-        pytest.param(None, STATE_UNAVAILABLE, id="unrecognised"),
+        # nothing to report, so it is unknown rather than a guess. The charger
+        # is still reachable, so it is not unavailable either.
+        pytest.param(None, STATE_UNKNOWN, id="unrecognised"),
     ],
 )
 @pytest.mark.usefixtures("mock_ble_device")

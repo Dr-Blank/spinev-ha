@@ -3,8 +3,8 @@
     "abort": {
       "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
       "already_in_progress": "[%key:common::config_flow::abort::already_in_progress%]",
-      "cannot_connect": "Failed to connect. The charger accepts one Bluetooth client at a time, so close the phone app and try again. See [Setup can't find or reach the charger]({docs_url}).",
-      "no_devices_found": "No Spin EV charger was found over Bluetooth. Check that the charger is powered on, that no phone app is connected to it (it accepts one Bluetooth client at a time), and that Home Assistant has a Bluetooth adapter or an ESPHome Bluetooth proxy in range of the charger. See [Setup can't find or reach the charger]({docs_url}) for the full checklist.",
+      "cannot_connect": "Failed to connect. The charger accepts one Bluetooth client at a time, so close the phone app and try again.",
+      "no_devices_found": "No Spin EV charger was found over Bluetooth. Check that the charger is powered on, that no phone app is connected to it, and that Home Assistant has a Bluetooth adapter or an ESPHome Bluetooth proxy in range of the charger.",
       "not_supported": "This Bluetooth device is not a Spin EV charger."
     },
     "flow_title": "{name}",
@@ -39,12 +39,6 @@
       }
     },
     "button": {
-      "apply_config": {
-        "name": "Apply config"
-      },
-      "refresh": {
-        "name": "Refresh"
-      },
       "sync_clock": {
         "name": "Sync clock"
       }
@@ -55,18 +49,9 @@
       },
       "random_delay": {
         "name": "Start delay"
-      },
-      "timezone_hours": {
-        "name": "Timezone offset hours"
-      },
-      "timezone_minutes": {
-        "name": "Timezone offset minutes"
       }
     },
     "sensor": {
-      "current_limit": {
-        "name": "Current limit"
-      },
       "grid_current_limit": {
         "name": "Grid current limit"
       },
@@ -130,36 +115,29 @@
       "message": "The charger is still starting up and will not accept commands yet."
     },
     "charger_busy": {
-      "message": "The charger will not change its current limit during a session. Stop charging first, then apply the change."
+      "message": "The charger will not change its current limit during a session. Stop charging first, then try again."
     },
     "command_rejected": {
       "message": "The charger refused the command. The Bluetooth password is probably wrong."
     },
     "device_not_found": {
-      "message": "Could not find the charger with address {address}. It may be out of range of every Bluetooth adapter and proxy."
+      "message": "Could not find the charger with address {address}. {reason}"
     },
     "no_vehicle_connected": {
       "message": "No vehicle is connected, so charging cannot be started."
     }
   },
   "options": {
-    "error": {
-      "idle_interval_too_short": "The idle interval should be at least as long as the charging interval."
-    },
     "step": {
       "init": {
         "data": {
-          "charging_interval": "Poll interval while charging",
-          "connection_mode": "Connection mode",
-          "idle_interval": "Poll interval while idle"
+          "connection_mode": "Connection mode"
         },
         "data_description": {
-          "charging_interval": "How often to read the charger while a vehicle is charging.",
-          "connection_mode": "Reconnect each poll keeps the phone app usable between polls, at the cost of about a second of extra latency per poll and more reconnect churn. Stay connected polls faster and fails less often, but locks the phone app out for as long as the integration is enabled.",
-          "idle_interval": "How often to read the charger while no vehicle is charging. Keep this long, especially with reconnect each poll, so the phone app gets long uncontested stretches."
+          "connection_mode": "Stay connected holds the single Bluetooth slot for Home Assistant, so nobody else in range can pair with the charger, and it polls faster and fails less often. Reconnect each poll gives the slot up between polls so the phone app stays usable, at the cost of about a second of extra latency per poll and more reconnect churn."
         },
         "description": "The charger accepts one Bluetooth client at a time, so Home Assistant and the phone app cannot both be connected.",
-        "title": "Connection and polling"
+        "title": "Connection"
       }
     }
   },

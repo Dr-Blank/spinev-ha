@@ -4,7 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, override
 
-from spinev_ble import ChargerStatus
+from spinev_ble import ChargerStatus, LoadBalancingConfig
 
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -16,7 +16,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .const import ATTR_ALARMS
-from .coordinator import SpinEvConfigEntry
+from .coordinator import SpinEvConfigEntry, SpinEvCoordinator
 from .entity import SpinEvEntity
 
 PARALLEL_UPDATES = 0
@@ -69,27 +69,22 @@ async def async_setup_entry(
 ) -> None:
     """Set up the charger binary sensors."""
     coordinator = entry.runtime_data
-    async_add_entities(
-        [
-            *(
-                SpinEvBinarySensor(coordinator, description)
-                for description in BINARY_SENSORS
-            ),
-            SpinEvLoadBalancingBinarySensor(coordinator, LOAD_BALANCING_DESCRIPTION),
-        ]
-    )
+    entities: list[BinarySensorEntity] = [
+        SpinEvBinarySensor(coordinator, description) for description in BINARY_SENSORS
+    ]
+    if (config := coordinator.load_balancing) is not None:
+        entities.append(
+            SpinEvLoadBalancingBinarySensor(
+                coordinator, LOAD_BALANCING_DESCRIPTION, config
+            )
+        )
+    async_add_entities(entities)
 
 
 class SpinEvBinarySensor(SpinEvEntity, BinarySensorEntity):
     """A charger condition."""
 
     entity_description: SpinEvBinarySensorEntityDescription
-
-    @property
-    @override
-    def available(self) -> bool:
-        """Return True while the charger reports this condition."""
-        return super().available and self.is_on is not None
 
     @property
     @override
@@ -111,19 +106,16 @@ class SpinEvLoadBalancingBinarySensor(SpinEvEntity, BinarySensorEntity):
 
     While this is on, delivered current can sit below the current limit with
     nothing being wrong: the charger is holding the whole installation under
-    what the grid connection carries.
+    what the grid connection carries. The setting is read once per config
+    entry, so it is resolved here rather than on every state write.
     """
 
-    @property
-    @override
-    def available(self) -> bool:
-        """Return True once the load balancing settings have been read."""
-        return super().available and self.coordinator.load_balancing is not None
-
-    @property
-    @override
-    def is_on(self) -> bool | None:
-        """Return True while load balancing is enabled."""
-        if (config := self.coordinator.load_balancing) is None:
-            return None
-        return config.enabled
+    def __init__(
+        self,
+        coordinator: SpinEvCoordinator,
+        description: BinarySensorEntityDescription,
+        config: LoadBalancingConfig,
+    ) -> None:
+        """Initialize the binary sensor."""
+        super().__init__(coordinator, description)
+        self._attr_is_on = config.enabled

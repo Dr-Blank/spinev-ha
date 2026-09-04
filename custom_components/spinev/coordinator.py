@@ -2,8 +2,6 @@
 
 import asyncio
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
-from datetime import timedelta
 import logging
 from typing import override
 
@@ -20,21 +18,20 @@ from spinev_ble import (
 )
 
 from homeassistant.components import bluetooth
+from homeassistant.components.bluetooth import BluetoothReachabilityIntent
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .const import (
-    CONF_CHARGING_INTERVAL,
+    CHARGING_INTERVAL,
     CONF_CONNECTION_MODE,
-    CONF_IDLE_INTERVAL,
-    DEFAULT_CHARGING_INTERVAL,
     DEFAULT_CONNECTION_MODE,
-    DEFAULT_IDLE_INTERVAL,
     DOMAIN,
-    INITIAL_INTERVAL,
+    IDLE_INTERVAL,
     MODE_PERSISTENT,
     REBOOT_SETTLE,
 )
@@ -42,16 +39,6 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 type SpinEvConfigEntry = ConfigEntry[SpinEvCoordinator]
-
-
-@dataclass
-class ChargerConfig:
-    """A snapshot of the charger's editable config."""
-
-    current_limit_a: float
-    timezone_hours: int
-    timezone_minutes: int
-    random_delay_s: int
 
 
 class SpinEvCoordinator(DataUpdateCoordinator[ChargerStatus]):
@@ -64,7 +51,6 @@ class SpinEvCoordinator(DataUpdateCoordinator[ChargerStatus]):
     The poll interval also adapts to what the charger is doing: short while a
     vehicle is charging so power and alarms stay current, long while idle so
     a per-poll connection leaves the phone app long uncontested stretches.
-    Both bounds come from options.
     """
 
     config_entry: SpinEvConfigEntry
@@ -76,61 +62,48 @@ class SpinEvCoordinator(DataUpdateCoordinator[ChargerStatus]):
             _LOGGER,
             config_entry=entry,
             name=DOMAIN,
-            update_interval=INITIAL_INTERVAL,
+            update_interval=CHARGING_INTERVAL,
         )
         self.address: str = entry.data[CONF_ADDRESS]
         self._keep_connected = (
             entry.options.get(CONF_CONNECTION_MODE, DEFAULT_CONNECTION_MODE)
             == MODE_PERSISTENT
         )
-        self._charging_interval = timedelta(
-            seconds=entry.options.get(CONF_CHARGING_INTERVAL, DEFAULT_CHARGING_INTERVAL)
-        )
-        self._idle_interval = timedelta(
-            seconds=entry.options.get(CONF_IDLE_INTERVAL, DEFAULT_IDLE_INTERVAL)
-        )
         self._charger: SpinEvCharger | None = None
-        #: Last config actually confirmed on the charger.
-        self.confirmed: ChargerConfig | None = None
-        #: Draft edited by the config number entities; not sent until applied.
-        self.pending: ChargerConfig | None = None
-        #: How the charger shares its supply. Read only, and read on the same
-        #: ticks as the config, since it takes seven registers to fetch.
+        #: The charger takes one Bluetooth client at a time, and a debounced
+        #: write runs outside the platform's own serialization.
+        self._link = asyncio.Lock()
+        #: Start delay as the charger last reported it. Only this integration
+        #: and the phone app change it, so it is read once rather than polled.
+        self.random_delay_s: int | None = None
+        #: How the charger shares its supply. Read only, and read once for the
+        #: same reason, since it takes seven registers to fetch.
         self.load_balancing: LoadBalancingConfig | None = None
-        self._sync_config_next = True
 
     @override
     async def _async_setup(self) -> None:
-        """Clear any link left over from a previous run."""
+        """Clear any stale link, then read the settings that are not polled."""
         await close_stale_connections_by_address(self.address)
         if self._async_ble_device() is None:
             raise ConfigEntryNotReady(
                 translation_domain=DOMAIN,
                 translation_key="device_not_found",
-                translation_placeholders={"address": self.address},
+                translation_placeholders={
+                    "address": self.address,
+                    "reason": bluetooth.async_address_reachability_diagnostics(
+                        self.hass, self.address, BluetoothReachabilityIntent.CONNECTION
+                    ),
+                },
             )
 
-    @override
-    async def _async_update_data(self) -> ChargerStatus:
-        """Read a full status snapshot.
-
-        Neither the timezone, the start delay nor the load balancing settings
-        are part of the status registers, and together they cost nine extra
-        round trips, so they are only read on the ticks that ask for it: the
-        first poll, a Refresh, and after a config is applied. Re-reading the
-        editable ones every tick would also overwrite an edit the user has not
-        applied yet.
-        """
         charger = await self._async_charger()
         try:
             await charger.async_connect()
-            status = await charger.async_get_status()
-            if self._sync_config_next:
-                await self._async_sync_config(charger, status)
-                self._sync_config_next = False
+            self.random_delay_s = await charger.async_get_random_delay()
+            await self._async_read_load_balancing(charger)
         except SpinEvError as err:
             await self.async_release()
-            raise UpdateFailed(
+            raise ConfigEntryNotReady(
                 translation_domain=DOMAIN,
                 translation_key="cannot_read",
                 translation_placeholders={"error": str(err)},
@@ -139,82 +112,81 @@ class SpinEvCoordinator(DataUpdateCoordinator[ChargerStatus]):
             if not self._keep_connected:
                 await self.async_release()
 
+    @override
+    async def _async_update_data(self) -> ChargerStatus:
+        """Read a full status snapshot."""
+        async with self._link:
+            charger = await self._async_charger()
+            try:
+                await charger.async_connect()
+                status = await charger.async_get_status()
+            except SpinEvError as err:
+                await self.async_release()
+                raise UpdateFailed(
+                    translation_domain=DOMAIN,
+                    translation_key="cannot_read",
+                    translation_placeholders={"error": str(err)},
+                ) from err
+            finally:
+                if not self._keep_connected:
+                    await self.async_release()
+
         # A suspended session can resume without a command, so it is polled at
         # the charging rate rather than the idle one.
         session_open = status.state is not None and (
             status.state.is_charging or status.state.is_suspended
         )
-        self.update_interval = (
-            self._charging_interval if session_open else self._idle_interval
-        )
+        self.update_interval = CHARGING_INTERVAL if session_open else IDLE_INTERVAL
         return status
 
-    async def _async_sync_config(
-        self, charger: SpinEvCharger, status: ChargerStatus
-    ) -> None:
-        """Reset the config draft and load balancing to what the charger says."""
-        hours, minutes = await charger.async_get_timezone()
-        delay = await charger.async_get_random_delay()
-        current_limit_a = status.current_limit_a or 0.0
-        self.confirmed = ChargerConfig(current_limit_a, hours, minutes, delay)
-        self.pending = ChargerConfig(current_limit_a, hours, minutes, delay)
-
-        # Not every model answers on the load balancing registers, and the rest
-        # of the integration works without them, so a failure here only drops
-        # those entities rather than failing the poll.
+    async def _async_read_load_balancing(self, charger: SpinEvCharger) -> None:
+        """Read the load balancing settings, tolerating models without them."""
+        # Not every model answers on these registers, and the rest of the
+        # integration works without them, so a failure here only drops those
+        # entities rather than failing setup.
         try:
             self.load_balancing = await charger.async_get_load_balancing()
         except SpinEvError as err:
             _LOGGER.debug("Charger %s has no load balancing: %s", self.address, err)
             self.load_balancing = None
 
-    async def async_refresh_now(self) -> None:
-        """Re-read the charger on demand, discarding any unapplied config edits."""
-        self._sync_config_next = True
-        await self.async_refresh()
+    async def async_start_charging(self) -> None:
+        """Start a charging session."""
+        await self._async_execute(lambda charger: charger.async_start_charging())
 
-    async def async_apply_config(self) -> None:
-        """Send only the changed parts of the pending config, then confirm it."""
-        pending, confirmed = self.pending, self.confirmed
-        if pending is None or confirmed is None:
-            return
+    async def async_stop_charging(self) -> None:
+        """Stop the charging session."""
+        await self._async_execute(lambda charger: charger.async_stop_charging())
 
-        current_limit_changed = pending.current_limit_a != confirmed.current_limit_a
-        timezone_changed = (
-            pending.timezone_hours != confirmed.timezone_hours
-            or pending.timezone_minutes != confirmed.timezone_minutes
+    async def async_set_current_limit(self, amps: float) -> None:
+        """Set the charging current limit.
+
+        Not committed: a current limit takes effect without one, and the commit
+        would restart the charger and end the very session it applies to.
+        """
+        await self._async_execute(
+            lambda charger: charger.async_set_current_limit(amps, commit=False)
         )
-        random_delay_changed = pending.random_delay_s != confirmed.random_delay_s
-        # Only these two need the commit that restarts the charger. A current
-        # limit takes effect without one, and committing it would end the very
-        # session the new limit was meant to apply to.
-        needs_commit = timezone_changed or random_delay_changed
-        if not current_limit_changed and not needs_commit:
-            return
 
-        async def action(charger: SpinEvCharger) -> None:
-            if current_limit_changed:
-                # Left at allow_while_charging=False on purpose: the charger's
-                # own app only ever changes this between sessions, and what a
-                # mid-session write does to a live charge is unestablished.
-                await charger.async_set_current_limit(
-                    pending.current_limit_a, commit=False
-                )
-            if timezone_changed:
-                await charger.async_set_timezone(
-                    pending.timezone_hours, pending.timezone_minutes, commit=False
-                )
-            if random_delay_changed:
-                await charger.async_set_random_delay(
-                    pending.random_delay_s, commit=False
-                )
-            if needs_commit:
-                await charger.async_commit()
+    async def async_set_random_delay(self, seconds: int) -> None:
+        """Set the delay before charging starts, restarting the charger."""
+        await self._async_execute(
+            lambda charger: charger.async_set_random_delay(seconds), reboots=True
+        )
+        self.random_delay_s = seconds
+        self.async_update_listeners()
 
-        self._sync_config_next = True
-        await self.async_execute(action, reboots=needs_commit)
+    async def async_sync_clock(self) -> None:
+        """Set the charger's clock to Home Assistant's time zone, then restart."""
+        await self._async_execute(
+            lambda charger: charger.async_sync_clock(dt_util.now()), reboots=True
+        )
 
-    async def async_execute(
+    async def async_reboot(self) -> None:
+        """Restart the charger, which clears a fault without cutting its power."""
+        await self._async_execute(lambda charger: charger.async_reboot(), reboots=True)
+
+    async def _async_execute(
         self,
         action: Callable[[SpinEvCharger], Awaitable[None]],
         *,
@@ -229,33 +201,33 @@ class SpinEvCoordinator(DataUpdateCoordinator[ChargerStatus]):
         a few seconds later and drops the link, so the link is released even in
         persistent mode and the refresh is deferred until it is back.
         """
-        charger = await self._async_charger()
-        try:
-            await charger.async_connect()
-            await action(charger)
-        except SpinEvBusyError as err:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN, translation_key="charger_busy"
-            ) from err
-        except SpinEvCommandRejectedError as err:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN, translation_key="command_rejected"
-            ) from err
-        except SpinEvError as err:
-            raise HomeAssistantError(
-                translation_domain=DOMAIN,
-                translation_key="cannot_write",
-                translation_placeholders={"error": str(err)},
-            ) from err
-        finally:
-            if reboots or not self._keep_connected:
-                await self.async_release()
+        async with self._link:
+            charger = await self._async_charger()
+            try:
+                await charger.async_connect()
+                await action(charger)
+            except SpinEvBusyError as err:
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN, translation_key="charger_busy"
+                ) from err
+            except SpinEvCommandRejectedError as err:
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN, translation_key="command_rejected"
+                ) from err
+            except SpinEvError as err:
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="cannot_write",
+                    translation_placeholders={"error": str(err)},
+                ) from err
+            finally:
+                if reboots or not self._keep_connected:
+                    await self.async_release()
 
         if not reboots:
             await self.async_request_refresh()
             return
 
-        self._sync_config_next = True
         self.config_entry.async_create_background_task(
             self.hass, self._async_refresh_after_reboot(), f"{DOMAIN} reboot refresh"
         )
@@ -283,7 +255,12 @@ class SpinEvCoordinator(DataUpdateCoordinator[ChargerStatus]):
             raise UpdateFailed(
                 translation_domain=DOMAIN,
                 translation_key="device_not_found",
-                translation_placeholders={"address": self.address},
+                translation_placeholders={
+                    "address": self.address,
+                    "reason": bluetooth.async_address_reachability_diagnostics(
+                        self.hass, self.address, BluetoothReachabilityIntent.CONNECTION
+                    ),
+                },
             )
 
         self._charger = SpinEvCharger(ble_device, client_class=HaBleakClientWrapper)
