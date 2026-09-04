@@ -1,6 +1,6 @@
 [project]
 name = "spinev-ha"
-version = "0.2.0"
+version = "0.3.0"
 description = "Home Assistant integration for Exicom Spin EV chargers"
 requires-python = ">=3.14"
 dependencies = ["spinev-ble[bleak]==0.2.0"]
