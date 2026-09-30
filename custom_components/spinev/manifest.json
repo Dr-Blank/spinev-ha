@@ -16,6 +16,6 @@
   "issue_tracker": "https://github.com/Dr-Blank/spinev-ha/issues",
   "loggers": ["spinev_ble"],
   "quality_scale": "bronze",
-  "requirements": ["spinev-ble[bleak]==0.2.0"],
+  "requirements": ["spinev-ble[bleak]==0.5.0"],
   "version": "0.3.0"
 }

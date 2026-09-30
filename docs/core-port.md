@@ -12,7 +12,7 @@ This is what still has to change, and how to split it across pull requests.
 | `version` | `"0.2.0"` — required by HACS | **remove**, hassfest rejects it |
 | `issue_tracker` | this repository | **remove**, core uses its own |
 | `documentation` | this repository | `https://www.home-assistant.io/integrations/spinev` |
-| `requirements` | `spinev-ble[bleak]==0.2.0` | same, but core already pins `bleak`, so the extra resolves to a no-op and reviewers may ask to drop it |
+| `requirements` | `spinev-ble[bleak]==0.5.0` | same, but core already pins `bleak`, so the extra resolves to a no-op and reviewers may ask to drop it |
 
 Nothing else in the manifest changes.
 

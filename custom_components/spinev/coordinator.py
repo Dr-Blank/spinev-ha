@@ -9,6 +9,7 @@ from bleak.backends.device import BLEDevice
 from bleak_retry_connector import close_stale_connections_by_address
 from habluetooth import HaBleakClientWrapper
 from spinev_ble import (
+    BleTransport,
     ChargerStatus,
     LoadBalancingConfig,
     SpinEvBusyError,
@@ -263,7 +264,9 @@ class SpinEvCoordinator(DataUpdateCoordinator[ChargerStatus]):
                 },
             )
 
-        self._charger = SpinEvCharger(ble_device, client_class=HaBleakClientWrapper)
+        self._charger = SpinEvCharger(
+            BleTransport(ble_device, client_class=HaBleakClientWrapper)
+        )
         return self._charger
 
     def _async_ble_device(self) -> BLEDevice | None:
