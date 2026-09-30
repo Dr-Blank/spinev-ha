@@ -49,13 +49,20 @@ fastest when the first one has no contentious surface.
 `quality_scale.yaml`, `icons.json`, and `test_config_flow.py` (100% coverage is
 a hard gate), `test_init.py`, `test_sensor.py`. Trim `SENSORS` to `state`,
 `power`, `current`, `session_energy` and `lifetime_energy`; leave the rest and
-the whole of `LOAD_BALANCING_SENSORS` for PR 2. Drop the options flow from this
-one as well, so the first review is purely about setup and reading.
+the whole of `LOAD_BALANCING_SENSORS` for PR 2.
+
+The connection mode option ships here rather than later. It is not a feature
+sitting on top of the coordinator, it is the coordinator's lifecycle: without
+it PR 1 hardcodes a client per poll, and a later PR has to rewrite the whole
+connect and release path instead of adding an option to it. Reviewing that
+model once, with both branches under test, is cheaper than reviewing it twice.
 
 **PR 2** — the remaining sensors, `binary_sensor.py`, `diagnostics.py`.
 
-**PR 3** — `switch.py`, the write path on the coordinator, and the connection
-mode options flow.
+**PR 3** — `switch.py` and the write path on the coordinator. A debounced write
+runs outside the platform's own serialization, so this is where
+`_async_execute` and the `asyncio.Lock` around the link belong; PR 1 has a
+single caller and does not need either.
 
 **PR 4** — `number.py`, `button.py`.
 
