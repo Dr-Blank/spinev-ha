@@ -18,5 +18,5 @@
   "loggers": ["spinev_ble"],
   "quality_scale": "bronze",
   "requirements": ["spinev-ble[bleak]==0.5.0"],
-  "version": "0.5.0"
+  "version": "0.5.1"
 }
