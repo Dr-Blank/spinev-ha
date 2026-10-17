@@ -590,6 +590,10 @@ function humanize(value) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+// The frontend replaces customElements and HTMLElement with a scoped registry
+// polyfill as it starts, and that registry never sees elements defined before.
+await customElements.whenDefined("home-assistant");
+
 class SpinEvChargerCard extends HTMLElement {
   constructor() {
     super();
