@@ -123,6 +123,23 @@ reads about a dozen registers in sequence and takes roughly a second.
 
 Changing the connection mode reloads the integration.
 
+## Dashboard card
+
+The integration ships a card that puts the charger on one tile: its state and how long it has held it, power, a drawing of the charger and the car with energy flowing along the cable while it charges, start and stop, restart, the current limit with the live current inside it, and the session figures. Restart, and sync clock under **Settings and details**, both need a second tap since they restart the charger; **Confirm before restarting** in the card editor turns that off.
+
+The card loads with the integration, with nothing to add under dashboard resources. Edit a dashboard, **Add card**, and pick **Spin EV Charger**. The only option it needs is which charger to show:
+
+```yaml
+type: custom:spinev-charger-card
+device_id: <the charger's device id>
+battery_entity: sensor.my_car_battery # optional, the car's state of charge, shown as the car filling up
+name: Garage # optional, defaults to the device name
+show_settings: true # optional, hides Settings and details when false
+confirm_restart: true # optional, when false restart and sync clock act on the first tap
+```
+
+Tapping the state, power or any figure opens that entity's details. The current limit slider is locked while a session is open, since the charger refuses the change then. After updating the integration, refresh the browser once if the card still looks like the old version.
+
 ## Removal
 
 Delete the integration from **Settings > Devices & services**. Disabling,

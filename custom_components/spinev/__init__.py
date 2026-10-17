@@ -1,9 +1,21 @@
 """The Spin EV Charger integration."""
 
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.typing import ConfigType
 
-from .const import PLATFORMS
+from .card import async_register_card
+from .const import DOMAIN, PLATFORMS
 from .coordinator import SpinEvConfigEntry, SpinEvCoordinator
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    """Offer the dashboard card wherever a dashboard can be shown."""
+    if "frontend" in hass.config.components:
+        await async_register_card(hass)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: SpinEvConfigEntry) -> bool:
