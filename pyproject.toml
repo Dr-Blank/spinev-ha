@@ -25,6 +25,7 @@ dev = [
     "aiousbwatcher==1.1.2",
     "serialx==1.8.2",
     "aioesphomeapi",
+    "prek>=0.5.3",
 ]
 
 [tool.mypy]

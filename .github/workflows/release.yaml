@@ -7,11 +7,18 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing tag to (re)publish, e.g. v1.2.3"
+        description: "Existing tag to (re)release, e.g. v1.2.3"
         required: true
         type: string
 
 permissions: {}
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
   verify:
@@ -22,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ env.TAG }}
           persist-credentials: false
 
       - name: Install uv
@@ -31,47 +38,73 @@ jobs:
           python-version: "3.14"
           enable-cache: true
 
-      - name: Install dependencies
-        run: uv sync --locked --all-extras --dev
-
       # Home Assistant reads the running version from the manifest, so a tag
       # that disagrees with it ships an integration that reports the wrong one.
       - name: Verify the tag matches both versions
         run: |
-          tag="${{ inputs.tag || github.ref_name }}"
           project="v$(uv version --short)"
           manifest="v$(python3 -c 'import json; print(json.load(open("custom_components/spinev/manifest.json"))["version"])')"
-          if [ "$tag" != "$project" ]; then
-            echo "::error::tag $tag does not match pyproject.toml version $project"
+          if [ "$TAG" != "$project" ]; then
+            echo "::error::tag $TAG does not match pyproject.toml version $project"
             exit 1
           fi
-          if [ "$tag" != "$manifest" ]; then
-            echo "::error::tag $tag does not match manifest.json version $manifest"
+          if [ "$TAG" != "$manifest" ]; then
+            echo "::error::tag $TAG does not match manifest.json version $manifest"
             exit 1
           fi
+
+      - name: Install dependencies
+        run: uv sync --locked --all-extras --dev
+
+      - name: Ruff
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Mypy
+        run: uv run mypy custom_components/spinev
 
       - name: Test
         run: uv run pytest
 
+  hassfest:
+    name: Hassfest
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+      - uses: home-assistant/actions/hassfest@master
+
   release:
     name: Release
-    needs: [verify]
+    needs: [verify, hassfest]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
           persist-credentials: false
 
+      # hacs.json sets zip_release to false, so HACS installs from the tagged
+      # source and the release carries no build artifact.
       - name: Create the GitHub release if it is missing
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="${{ inputs.tag || github.ref_name }}"
-          if gh release view "$tag" >/dev/null 2>&1; then
-            echo "release $tag already exists, skipping"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "release $TAG already exists, skipping"
             exit 0
           fi
-          gh release create "$tag" --title "$tag" --generate-notes
+          ./script/release_notes.sh "$TAG" > "$RUNNER_TEMP/notes.md"
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --generate-notes \
+            --verify-tag

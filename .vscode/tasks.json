@@ -29,7 +29,7 @@
       "label": "Release: Push Tags to Origin",
       "detail": "Pushes the release commit and its tag, which triggers the Release workflow.",
       "type": "shell",
-      "command": "git push --follow-tags",
+      "command": "git push --follow-tags origin main",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
@@ -49,10 +49,10 @@
       }
     },
     {
-      "label": "Lint",
-      "detail": "Runs ruff and mypy the way CI does.",
+      "label": "Prek",
+      "detail": "Runs every hook, tests included, the way CI does.",
       "type": "shell",
-      "command": "uv run ruff check . && uv run ruff format --check . && uv run mypy custom_components/spinev",
+      "command": "uv run prek run --all-files --hook-stage manual",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
