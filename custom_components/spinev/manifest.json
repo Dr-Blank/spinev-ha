@@ -1,13 +1,13 @@
 {
   "domain": "spinev",
   "name": "Spin EV Charger",
+  "after_dependencies": ["frontend", "http"],
   "bluetooth": [
     {
       "connectable": true,
       "service_uuid": "49535343-fe7d-4ae5-8fa9-9fafd205e455"
     }
   ],
-  "after_dependencies": ["frontend", "http"],
   "codeowners": ["@Dr-Blank"],
   "config_flow": true,
   "dependencies": ["bluetooth_adapters"],
