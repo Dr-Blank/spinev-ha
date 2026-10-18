@@ -12,5 +12,4 @@ DEST="${HA_CORE:-$HOME/projects/ha-core}/config/custom_components"
 mkdir -p "$DEST"
 rm -rf "${DEST:?}/spinev"
 ln -s /workspaces/spinev-ha/custom_components/spinev "$DEST/spinev"
-
 echo "linked $DEST/spinev -> /workspaces/spinev-ha/custom_components/spinev"
