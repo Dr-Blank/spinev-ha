@@ -44,6 +44,7 @@ while IFS=$'\t' read -r sha subject; do
   line="- ${scope:+**${scope}:** }${description} (${short})"
   if [ -n "$bang" ] || grep -q '^BREAKING[ -]CHANGE:' <<<"$(git log -1 --format=%B "$sha")"; then
     breaking+="${line}"$'\n'
+    continue
   fi
 
   case "$type" in
@@ -70,7 +71,7 @@ if [ -n "${previous:-}" ]; then
 else
   printf '## Commits\n\n'
 fi
-if [ ${#sections[@]} -eq 0 ]; then
+if [ ${#sections[@]} -eq 0 ] && [ -z "$breaking" ]; then
   printf 'No changes besides the version bump.\n'
 fi
 print_section "Breaking changes" "$breaking"
