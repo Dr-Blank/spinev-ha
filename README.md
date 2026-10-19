@@ -125,7 +125,7 @@ Changing the connection mode reloads the integration.
 
 ## Dashboard card
 
-The integration ships a card that puts the charger on one tile: its state and how long it has held it, power, a drawing of the charger and the car with energy flowing along the cable while it charges, start and stop, restart, the current limit with the live current inside it, and the session figures. Restart, and sync clock under **Settings and details**, both need a second tap since they restart the charger; **Confirm before restarting** in the card editor turns that off.
+The integration ships a card that puts the charger on one tile: its state and how long it has held it, power, a drawing of the charger and the car with energy flowing along the cable while it charges, start and stop, refresh, the current limit with the live current inside it, and the session figures. Refresh polls the charger right away instead of waiting for the next poll. A collapsed **Settings and details** section holds voltage, current, lifetime energy, the start delay and restart. Restart needs a second tap since it ends any session; **Confirm before restarting** in the card editor turns that off.
 
 The card loads with the integration, with nothing to add under dashboard resources. Edit a dashboard, **Add card**, and pick **Spin EV Charger**. The only option it needs is which charger to show:
 
@@ -134,8 +134,9 @@ type: custom:spinev-charger-card
 device_id: <the charger's device id>
 battery_entity: sensor.my_car_battery # optional, the car's state of charge, shown as the car filling up
 name: Garage # optional, defaults to the device name
-show_settings: true # optional, hides Settings and details when false
-confirm_restart: true # optional, when false restart and sync clock act on the first tap
+show_settings: true # optional, removes Settings and details when false
+show_restart: true # optional, hides restart under Settings and details when false
+confirm_restart: true # optional, when false restart acts on the first tap
 ```
 
 Tapping the state, power or any figure opens that entity's details. The current limit slider is locked while a session is open, since the charger refuses the change then. After updating the integration, refresh the browser once if the card still looks like the old version.

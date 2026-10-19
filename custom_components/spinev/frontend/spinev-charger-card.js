@@ -33,30 +33,22 @@ const ROLES = {
   currentLimit: { domain: "number", key: "current_limit" },
   startDelay: { domain: "number", key: "random_delay" },
   restart: { domain: "button", deviceClass: "restart" },
-  syncClock: { domain: "button", key: "sync_clock" },
-  loadBalancing: { domain: "binary_sensor", key: "load_balancing" },
-  gridCurrentLimit: { domain: "sensor", key: "grid_current_limit" },
-  maxGridPower: { domain: "sensor", key: "max_grid_power" },
 };
 
 const STATS = ["sessionEnergy", "sessionDuration"];
-const DETAILS = [
-  "voltage",
-  "lifetimeEnergy",
-  "loadBalancing",
-  "gridCurrentLimit",
-  "maxGridPower",
-];
+const DETAILS = ["voltage", "current", "lifetimeEnergy"];
 
 const STRINGS = {
   start: "Start charging",
   stop: "Stop charging",
+  refresh: "Refresh",
+  refresh_tip: "Read the charger now instead of waiting for the next poll",
   restart: "Restart",
-  sync_clock: "Sync clock",
-  confirm: "Tap again to confirm",
-  restarts_charger: "Restarts the charger",
+  restart_label: "Restart charger",
+  restart_tip: "Restarts the charger, ending any session",
+  confirm: "Tap again",
   plug_in: "Plug in a vehicle to start",
-  clear_fault: "Restart clears the fault once its cause is gone",
+  clear_fault: "Restart under Settings and details clears the fault once its cause is gone",
   limit_locked: "Stop charging to change the current limit",
   settings: "Settings and details",
   no_device: "Pick a Spin EV charger in the card settings",
@@ -103,6 +95,9 @@ const TEMPLATE = `
     --spinev-accent: var(--spinev-idle-color);
     --spinev-control-bg: rgba(var(--rgb-primary-text-color, 33, 33, 33), 0.06);
     --spinev-radius: var(--ha-border-radius-lg, 12px);
+    --spinev-glow-color: var(--white-color, #fff);
+    --spinev-tooltip-bg: var(--ha-tooltip-background-color, var(--ha-color-surface-default, var(--card-background-color, #fff)));
+    --spinev-tooltip-color: var(--ha-tooltip-text-color, var(--primary-text-color));
     display: block;
   }
   ha-card {
@@ -117,6 +112,7 @@ const TEMPLATE = `
   .mode-paused { --spinev-accent: var(--spinev-paused-color); }
   .mode-fault { --spinev-accent: var(--spinev-fault-color); }
   .mode-connected { --spinev-accent: var(--spinev-connected-color); }
+  .mode-booting { --spinev-accent: var(--spinev-charging-color); }
 
   [role="button"] { cursor: pointer; }
   [role="button"]:focus-visible, button:focus-visible, input:focus-visible {
@@ -154,7 +150,7 @@ const TEMPLATE = `
     color: var(--spinev-accent);
     transition: color 0.3s;
   }
-  .mode-idle .status, .mode-offline .status { color: var(--primary-text-color); }
+  .mode-idle .status, .mode-booting .status, .mode-offline .status { color: var(--primary-text-color); }
   .since { margin-top: 2px; }
   .figures { text-align: end; flex: none; }
   .power {
@@ -219,6 +215,7 @@ const TEMPLATE = `
   }
   .cable { transition: stroke 0.3s; }
   .mode-charging .cable { stroke: color-mix(in srgb, var(--spinev-accent) 55%, var(--primary-text-color)); }
+  .glow { stop-color: var(--spinev-glow-color); }
   .sweep {
     fill: url(#sweepGlow);
     opacity: 0;
@@ -244,7 +241,7 @@ const TEMPLATE = `
   }
   .vehicle .plugged { opacity: 1; }
   ha-card:not(.vehicle) .stowed { opacity: 1; }
-  .mode-offline .charger, .mode-offline .stowed { opacity: 0.35; }
+  .mode-offline .charger, ha-card.mode-offline:not(.vehicle) .stowed { opacity: 0.3; }
 
   /* One cycle is the time between two packets reaching the car. The port
      flash and the glow are shifted so each starts as a packet arrives. */
@@ -264,7 +261,11 @@ const TEMPLATE = `
   .mode-charging .bolt { animation: pulse 2s ease-in-out infinite; }
   .mode-paused .led { animation: pulse 3s ease-in-out infinite; }
   .mode-fault .led, .mode-fault .bolt { animation: blink 1s steps(2, jump-none) infinite; }
-  .mode-offline .led { animation: pulse 1.2s ease-in-out infinite; }
+  .mode-booting .led, .mode-booting .bolt {
+    opacity: 0.45;
+    filter: drop-shadow(0 0 3px var(--spinev-accent));
+    animation: wake 2.4s ease-in-out infinite;
+  }
 
   @keyframes flow {
     from { stroke-dashoffset: 0; }
@@ -276,6 +277,8 @@ const TEMPLATE = `
   }
   @keyframes pulse { 50% { opacity: 0.3; } }
   @keyframes blink { 50% { opacity: 0.2; } }
+  @keyframes wake { from, to { opacity: 0.2; } 50% { opacity: 0.7; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
   @keyframes sweep {
     from {
       transform: translateX(-${ANIMATION.sweepWidth}px);
@@ -315,16 +318,26 @@ const TEMPLATE = `
     -webkit-tap-highlight-color: transparent;
   }
   .control:hover:not(:disabled) { background: rgba(var(--rgb-primary-text-color, 33, 33, 33), 0.12); }
-  .control:disabled { opacity: 0.4; cursor: default; }
+  .control:disabled { cursor: default; }
+  .control:disabled > * { opacity: 0.4; }
   .control.primary {
     flex: 1;
     background: color-mix(in srgb, var(--spinev-accent) 20%, transparent);
     color: var(--spinev-accent);
   }
-  .mode-idle .control.primary, .mode-offline .control.primary {
+  .mode-idle .control.primary, .mode-booting .control.primary, .mode-offline .control.primary {
     color: var(--primary-text-color);
     background: var(--spinev-control-bg);
   }
+  .control.refresh {
+    color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 14%, transparent);
+  }
+  .control.refresh:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--primary-color) 24%, transparent);
+  }
+  .control.restart ha-icon { color: var(--spinev-fault-color); }
+  .control.refreshing ha-icon { animation: spin 1s linear infinite; }
   .control.armed {
     background: color-mix(in srgb, var(--spinev-fault-color) 20%, transparent);
     color: var(--spinev-fault-color);
@@ -335,6 +348,29 @@ const TEMPLATE = `
     color: var(--secondary-text-color);
   }
   .hint:empty { display: none; }
+
+  [data-tooltip] { position: relative; }
+  [data-tooltip]:hover::after, [data-tooltip]:focus-visible::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    inset-inline-start: 0;
+    z-index: 1;
+    width: max-content;
+    max-width: 220px;
+    padding: var(--ha-tooltip-padding, var(--ha-space-2, 8px));
+    border-radius: var(--ha-tooltip-border-radius, var(--ha-border-radius-md, 8px));
+    background: var(--spinev-tooltip-bg);
+    color: var(--spinev-tooltip-color);
+    box-shadow: var(--ha-tooltip-box-shadow, var(--ha-box-shadow-m, 0 3px 6px -1px rgba(0, 0, 0, 0.1), 0 8px 16px -2px rgba(0, 0, 0, 0.15)));
+    font-size: var(--ha-tooltip-font-size, var(--ha-font-size-s, 12px));
+    font-weight: var(--ha-tooltip-font-weight, var(--ha-font-weight-medium, 500));
+    line-height: var(--ha-tooltip-line-height, 1.4);
+    text-align: start;
+    white-space: normal;
+    pointer-events: none;
+  }
+  .tip-end[data-tooltip]::after { inset-inline-start: auto; inset-inline-end: 0; }
 
   .stats {
     display: grid;
@@ -459,9 +495,9 @@ const TEMPLATE = `
         <clipPath id="carClip"><path d="${CAR_BODY}"></path></clipPath>
         <clipPath id="chargeClip"><rect id="chargeClipRect" x="152" y="38" width="156" height="58"></rect></clipPath>
         <linearGradient id="sweepGlow">
-          <stop offset="0" stop-color="#fff" stop-opacity="0"></stop>
-          <stop offset="0.7" stop-color="#fff" stop-opacity="0.45"></stop>
-          <stop offset="1" stop-color="#fff" stop-opacity="0"></stop>
+          <stop class="glow" offset="0" stop-opacity="0"></stop>
+          <stop class="glow" offset="0.7" stop-opacity="0.45"></stop>
+          <stop class="glow" offset="1" stop-opacity="0"></stop>
         </linearGradient>
       </defs>
       <line class="ground" x1="8" y1="108" x2="312" y2="108"></line>
@@ -500,8 +536,8 @@ const TEMPLATE = `
       <button class="control primary" id="toggle" type="button">
         <ha-icon id="toggleIcon" icon="mdi:play"></ha-icon><span id="toggleLabel"></span>
       </button>
-      <button class="control" id="restart" type="button">
-        <ha-icon icon="mdi:restart"></ha-icon>
+      <button class="control refresh tip-end" id="refresh" type="button">
+        <ha-icon icon="mdi:refresh"></ha-icon><span>${STRINGS.refresh}</span>
       </button>
     </div>
     <div class="hint" id="hint" aria-live="polite"></div>
@@ -509,7 +545,7 @@ const TEMPLATE = `
     <div class="limit" id="limit">
       <div class="limit-head">
         <span class="label" id="limitLabel" role="button" tabindex="0"></span>
-        <ha-icon class="lock" id="limitLock" icon="mdi:lock-outline"></ha-icon>
+        <ha-icon class="lock" id="limitLock" icon="mdi:lock-outline" role="img"></ha-icon>
         <span class="value" id="limitValue"></span>
       </div>
       <input type="range" id="limitSlider" />
@@ -521,10 +557,10 @@ const TEMPLATE = `
         <span class="label" id="delayLabel"></span>
         <span class="value" id="delayValue"></span>
       </div>
-      <div class="row" id="syncRow">
-        <span class="label" id="syncLabel"></span>
-        <button class="control" id="sync" type="button">
-          <ha-icon icon="mdi:clock-check-outline"></ha-icon>
+      <div class="row" id="restartRow">
+        <span class="label">${STRINGS.restart_label}</span>
+        <button class="control restart tip-end" id="restart" type="button">
+          <ha-icon icon="mdi:power-cycle"></ha-icon><span id="restartText">${STRINGS.restart}</span>
         </button>
       </div>
     </details>
@@ -601,8 +637,9 @@ class SpinEvChargerCard extends HTMLElement {
     this.shadowRoot.innerHTML = TEMPLATE;
     this._el = (id) => this.shadowRoot.getElementById(id);
     this._card = this.shadowRoot.querySelector("ha-card");
-    this._armed = null;
+    this._armed = false;
     this._sliding = false;
+    this._refreshing = false;
     this._bind();
   }
 
@@ -620,6 +657,7 @@ class SpinEvChargerCard extends HTMLElement {
         },
         { name: "name", selector: { text: {} } },
         { name: "show_settings", default: true, selector: { boolean: {} } },
+        { name: "show_restart", default: true, selector: { boolean: {} } },
         { name: "confirm_restart", default: true, selector: { boolean: {} } },
       ],
       computeLabel: (schema) =>
@@ -628,13 +666,14 @@ class SpinEvChargerCard extends HTMLElement {
           battery_entity: "Vehicle battery",
           name: "Name",
           show_settings: "Show settings and details",
+          show_restart: "Show restart button",
           confirm_restart: "Confirm before restarting",
         })[schema.name],
       computeHelper: (schema) =>
         ({
           battery_entity: "The car's state of charge, shown as the car filling up",
-          confirm_restart:
-            "Restart and sync clock both restart the charger, ending any session. When on, they need a second tap.",
+          show_restart: "Under Settings and details",
+          confirm_restart: "Restarting ends any session. When on, restart needs a second tap.",
         })[schema.name],
     };
   }
@@ -648,7 +687,7 @@ class SpinEvChargerCard extends HTMLElement {
 
   setConfig(config) {
     if (!config || typeof config !== "object") throw new Error("Invalid configuration");
-    this._config = { show_settings: true, confirm_restart: true, ...config };
+    this._config = { show_settings: true, show_restart: true, confirm_restart: true, ...config };
     this._entities = null;
     if (this._hass) this._render();
   }
@@ -716,13 +755,8 @@ class SpinEvChargerCard extends HTMLElement {
     this._moreInfoOn = moreInfo;
 
     this._el("toggle").addEventListener("click", () => this._toggleSession());
-    this._el("restart").addEventListener("click", (ev) =>
-      this._armThenPress(ev.currentTarget, "restart"),
-    );
-    this._el("sync").addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      this._armThenPress(ev.currentTarget, "syncClock");
-    });
+    this._el("refresh").addEventListener("click", () => this._refresh());
+    this._el("restart").addEventListener("click", () => this._restart());
 
     const slider = this._el("limitSlider");
     slider.addEventListener("input", () => {
@@ -761,38 +795,48 @@ class SpinEvChargerCard extends HTMLElement {
     this._call("switch", active ? "turn_off" : "turn_on", "session");
   }
 
-  /** Destructive buttons need a second tap, since both restart the charger. */
-  _armThenPress(button, role) {
-    if (this._armed === role || !this._config.confirm_restart) {
+  /** Poll the charger now; the coordinator refreshes for any of its entities. */
+  async _refresh() {
+    if (this._refreshing) return;
+    this._refreshing = true;
+    this._renderRefresh();
+    await this._call("homeassistant", "update_entity", "status");
+    this._refreshing = false;
+    this._renderRefresh();
+  }
+
+  _renderRefresh() {
+    const refresh = this._el("refresh");
+    refresh.disabled = this._refreshing;
+    refresh.classList.toggle("refreshing", this._refreshing);
+    refresh.dataset.tooltip = STRINGS.refresh_tip;
+  }
+
+  /** Restart needs a second tap, since it ends any session. */
+  _restart() {
+    if (this._armed || !this._config.confirm_restart) {
       this._disarm();
-      this._renderControls(this._mode());
-      this._call("button", "press", role);
+      this._call("button", "press", "restart");
       return;
     }
-    this._disarm();
-    this._armed = role;
-    button.classList.add("armed");
-    button.setAttribute("title", STRINGS.confirm);
-    this._el("hint").textContent = `${STRINGS.confirm} · ${STRINGS.restarts_charger}`;
-    this._armTimer = setTimeout(() => {
-      this._disarm();
-      if (this._hass && this._entities) this._renderControls(this._mode());
-    }, ARM_SECONDS * 1000);
+    this._armed = true;
+    this._el("restart").classList.add("armed");
+    this._el("restartText").textContent = STRINGS.confirm;
+    this._armTimer = setTimeout(() => this._disarm(), ARM_SECONDS * 1000);
   }
 
   _disarm() {
     clearTimeout(this._armTimer);
-    this._armed = null;
-    for (const id of ["restart", "sync"]) {
-      this._el(id).classList.remove("armed");
-      this._el(id).removeAttribute("title");
-    }
+    this._armed = false;
+    this._el("restart").classList.remove("armed");
+    this._el("restartText").textContent = STRINGS.restart;
   }
 
-  /** One of idle, connected, charging, paused, fault or offline. */
+  /** One of idle, connected, charging, paused, fault, booting or offline. */
   _mode() {
     const status = this._state("status");
-    if (!isUsable(status) || ["booting", "unavailable"].includes(status.state)) return "offline";
+    if (!isUsable(status) || status.state === "unavailable") return "offline";
+    if (status.state === "booting") return "booting";
     if (isOn(this._state("problem")) || status.state === "fault") return "fault";
     if (status.state === "charging") return "charging";
     if (["ev_suspended", "evse_suspended"].includes(status.state)) return "paused";
@@ -855,7 +899,8 @@ class SpinEvChargerCard extends HTMLElement {
     this._el("power").hidden = !isUsable(power);
     if (isUsable(power)) this._el("power").textContent = this._hass.formatEntityState(power);
 
-    const battery = this._state("battery");
+    // The car's charge means nothing at the charger while the car is away.
+    const battery = this._hasVehicle(mode) ? this._state("battery") : undefined;
     const level = isUsable(battery) ? clamp01(Number(battery.state) / 100) : null;
     this._el("battery").hidden = level === null;
     if (level !== null) {
@@ -905,16 +950,18 @@ class SpinEvChargerCard extends HTMLElement {
     this._el("toggleIcon").setAttribute("icon", active ? "mdi:stop" : "mdi:play");
     this._el("toggleLabel").textContent = active ? STRINGS.stop : STRINGS.start;
 
-    const restart = this._el("restart");
-    restart.hidden = !this._entities.restart;
-    restart.disabled = !isPressable(this._state("restart"));
-    restart.setAttribute("aria-label", STRINGS.restart);
+    this._renderRefresh();
 
-    if (this._armed) return;
     let hint = "";
-    if (mode === "fault" && this._entities.restart) hint = STRINGS.clear_fault;
-    else if (mode !== "offline" && !active && !connected) hint = STRINGS.plug_in;
+    if (mode === "fault" && this._showRestart()) hint = STRINGS.clear_fault;
+    else if (!["booting", "offline"].includes(mode) && !active && !connected) hint = STRINGS.plug_in;
     this._el("hint").textContent = hint;
+  }
+
+  _showRestart() {
+    return (
+      !!this._entities.restart && this._config.show_restart && this._config.show_settings
+    );
   }
 
   /** A session in progress means a car is there, whatever the plug sensor last said. */
@@ -968,7 +1015,8 @@ class SpinEvChargerCard extends HTMLElement {
     this._live = mode === "charging" && isUsable(current) ? Number(current.state) : null;
     this._el("limitLabel").textContent = this._entityName(limit);
     this._el("limitLock").hidden = !locked;
-    this._el("limitLock").setAttribute("title", STRINGS.limit_locked);
+    this._el("limitLock").dataset.tooltip = STRINGS.limit_locked;
+    this._el("limitLock").setAttribute("aria-label", STRINGS.limit_locked);
     slider.setAttribute("title", locked ? STRINGS.limit_locked : "");
     this._paintSlider();
   }
@@ -999,13 +1047,10 @@ class SpinEvChargerCard extends HTMLElement {
       this._el("delayValue").textContent = this._hass.formatEntityState(delay);
     }
 
-    const sync = this._state("syncClock");
-    this._el("syncRow").hidden = !sync;
-    if (sync) {
-      this._el("syncLabel").textContent = this._entityName(sync) || STRINGS.sync_clock;
-      this._el("sync").disabled = !isPressable(sync);
-      this._el("sync").setAttribute("aria-label", STRINGS.sync_clock);
-    }
+    this._el("restartRow").hidden = !this._showRestart();
+    const restart = this._el("restart");
+    restart.disabled = !isPressable(this._state("restart"));
+    restart.dataset.tooltip = STRINGS.restart_tip;
   }
 
   /** The entity's own name, without the device name in front. */
