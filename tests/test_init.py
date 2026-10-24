@@ -1,6 +1,6 @@
 """Tests for setting the Spin EV Charger integration up and tearing it down."""
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -9,6 +9,7 @@ from spinev_ble import SpinEvError
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 
+from .const import ADDRESS
 from custom_components.spinev.const import CONF_CONNECTION_MODE, MODE_PERSISTENT
 
 
@@ -58,10 +59,16 @@ async def test_setup_retries_when_the_charger_is_not_seen(
     mock_ble_device.return_value = None
     mock_config_entry.add_to_hass(hass)
 
-    await hass.config_entries.async_setup(mock_config_entry.entry_id)
-    await hass.async_block_till_done()
+    with patch(
+        "homeassistant.components.bluetooth.async_clear_address_from_match_history"
+    ) as mock_clear:
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
 
     assert mock_config_entry.state is ConfigEntryState.SETUP_RETRY
+    # Lets the next connectable advertisement rediscover the charger, which
+    # reloads the entry without waiting out the retry backoff.
+    mock_clear.assert_called_once_with(hass, ADDRESS)
 
 
 @pytest.mark.parametrize(

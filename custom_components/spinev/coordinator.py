@@ -169,6 +169,10 @@ class SpinEvCoordinator(DataUpdateCoordinator[ChargerStatus]):
         address = self._ble_address
         await close_stale_connections_by_address(address)
         if self._async_ble_device() is None:
+            # Passive scanners keep the address from ever disappearing, so the
+            # matcher would not rediscover it, and rediscovery is what reloads
+            # this entry once a connectable scanner hears the charger.
+            bluetooth.async_clear_address_from_match_history(self.hass, address)
             raise ConfigEntryNotReady(
                 translation_domain=DOMAIN,
                 translation_key="device_not_found",
