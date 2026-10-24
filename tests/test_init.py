@@ -99,9 +99,9 @@ async def test_changing_options_reloads(
     await hass.async_block_till_done()
     coordinator = mock_config_entry.runtime_data
 
-    hass.config_entries.async_update_entry(
-        mock_config_entry,
-        options={**mock_config_entry.options, CONF_CONNECTION_MODE: MODE_PERSISTENT},
+    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
+    await hass.config_entries.options.async_configure(
+        result["flow_id"], {CONF_CONNECTION_MODE: MODE_PERSISTENT}
     )
     await hass.async_block_till_done()
 

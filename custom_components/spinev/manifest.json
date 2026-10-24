@@ -10,13 +10,13 @@
   ],
   "codeowners": ["@Dr-Blank"],
   "config_flow": true,
-  "dependencies": ["bluetooth_adapters"],
+  "dependencies": ["bluetooth_adapters", "network"],
   "documentation": "https://github.com/Dr-Blank/spinev-ha",
   "integration_type": "device",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/Dr-Blank/spinev-ha/issues",
-  "loggers": ["spinev_ble"],
+  "loggers": ["ocpp_csms", "spinev_ble"],
   "quality_scale": "bronze",
-  "requirements": ["spinev-ble[bleak]==0.5.0"],
+  "requirements": ["ocpp-csms==0.1.0", "spinev-ble[bleak]==0.5.1"],
   "version": "0.6.0"
 }

@@ -7,10 +7,10 @@ from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_SERIAL
+from .const import CONF_CHARGE_POINT_ID, CONF_SERIAL
 from .coordinator import SpinEvConfigEntry
 
-TO_REDACT = {CONF_ADDRESS, CONF_SERIAL}
+TO_REDACT = {CONF_ADDRESS, CONF_CHARGE_POINT_ID, CONF_SERIAL}
 
 
 async def async_get_config_entry_diagnostics(

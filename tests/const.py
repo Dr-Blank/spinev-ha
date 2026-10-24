@@ -1,20 +1,49 @@
 """Shared constants for the Spin EV Charger tests."""
 
-from spinev_ble import ChargerState, ChargerStatus, LoadBalancingConfig
+from spinev_ble import ChargerState, ChargerStatus, LoadBalancingConfig, OcppConfig
 
 from homeassistant.const import CONF_ADDRESS
 
 from custom_components.spinev.const import (
+    CONF_CHARGE_POINT_ID,
     CONF_CONNECTION_MODE,
     CONF_SERIAL,
+    CONF_TRANSPORT,
     DEFAULT_CONNECTION_MODE,
+    TRANSPORT_BLE,
+    TRANSPORT_OCPP,
 )
 
 ADDRESS = "AA:BB:CC:DD:EE:FF"
 SERIAL = "123456789012"
 ADVERTISED_NAME = f" {SERIAL}_EEFF"
 
-ENTRY_DATA = {CONF_ADDRESS: ADDRESS, CONF_SERIAL: SERIAL}
+#: Charge point id the charger uses by default, which ends with its serial.
+CHARGE_POINT_ID = f"XY2{SERIAL}"
+#: Address Home Assistant detects as its own.
+HA_HOST = "192.0.2.10"
+
+ENTRY_DATA = {CONF_ADDRESS: ADDRESS, CONF_SERIAL: SERIAL, CONF_TRANSPORT: TRANSPORT_BLE}
+#: A charger set up before OCPP support, not yet migrated.
+PRE_OCPP_ENTRY_DATA = {CONF_ADDRESS: ADDRESS, CONF_SERIAL: SERIAL}
+#: A charger set up over Bluetooth, then moved to OCPP.
+OCPP_ENTRY_DATA = {
+    CONF_ADDRESS: ADDRESS,
+    CONF_SERIAL: SERIAL,
+    CONF_TRANSPORT: TRANSPORT_OCPP,
+    CONF_CHARGE_POINT_ID: CHARGE_POINT_ID,
+}
+#: A charger set up over OCPP alone.
+OCPP_ONLY_ENTRY_DATA = {
+    CONF_SERIAL: CHARGE_POINT_ID,
+    CONF_TRANSPORT: TRANSPORT_OCPP,
+    CONF_CHARGE_POINT_ID: CHARGE_POINT_ID,
+}
+
+#: Where the charger connects before it is moved to Home Assistant.
+CLOUD_OCPP_CONFIG = OcppConfig(
+    host="dns:ocpp.example.com", port=443, path="ocpp", charge_point_id=CHARGE_POINT_ID
+)
 ENTRY_OPTIONS = {CONF_CONNECTION_MODE: DEFAULT_CONNECTION_MODE}
 
 STATUS = ChargerStatus(

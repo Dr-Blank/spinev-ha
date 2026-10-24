@@ -2,17 +2,81 @@
   "config": {
     "abort": {
       "already_configured": "Device is already configured",
-      "already_in_progress": "Configuration flow is already in progress",
+      "already_in_progress": "This is already being configured. Finish the existing configuration before starting again.",
       "cannot_connect": "Failed to connect. The charger accepts one Bluetooth client at a time, so close the phone app and try again.",
       "no_devices_found": "No Spin EV charger was found over Bluetooth. Check that the charger is powered on, that no phone app is connected to it, and that Home Assistant has a Bluetooth adapter or an ESPHome Bluetooth proxy in range of the charger.",
-      "not_supported": "This Bluetooth device is not a Spin EV charger."
+      "not_loaded": "The charger must be set up and working before its connection can be changed.",
+      "not_supported": "This Bluetooth device is not a Spin EV charger.",
+      "ocpp_port_in_use": "Home Assistant could not start its OCPP central system, most likely because another program is using TCP port 9321.",
+      "reconfigure_successful": "Reconfiguration was successful"
+    },
+    "error": {
+      "cannot_connect": "Could not reach the charger over Bluetooth. Close the phone app and try again.",
+      "invalid_host": "Enter the address of this Home Assistant.",
+      "no_charger_connected": "No new charger has connected yet. Check the address on the charger, wait for it to restart, then try again."
     },
     "flow_title": "{name}",
+    "progress": {
+      "ocpp_wait": "Waiting for {name} to restart and connect to Home Assistant. This usually takes about half a minute."
+    },
     "step": {
       "bluetooth_confirm": {
         "description": "Do you want to set up {name}?"
       },
-      "user": {
+      "bluetooth_to_ocpp": {
+        "data": {
+          "host": "Home Assistant address"
+        },
+        "data_description": {
+          "host": "The IP address or host name the charger uses to reach Home Assistant. The detected address is filled in; change it only if the charger is on a different network."
+        },
+        "description": "{name} now connects to `{current}`. It will connect to Home Assistant on port {port} instead, and restart to apply the change.\n\nIf Home Assistant runs in a Docker container without host networking, the detected address is the container's own and the charger cannot reach it: enter the address of the machine running Docker instead, and publish port {port} from the container.",
+        "title": "Point the charger at Home Assistant"
+      },
+      "ocpp": {
+        "description": "Point the charger's OCPP server at host `{host}`, port `{port}` and path `{path}`, keeping its charge point id.\n\nIf Home Assistant runs in a Docker container without host networking, the address above is the container's own and the charger cannot reach it: use the address of the machine running Docker instead, and publish port {port} from the container.\n\nOnce it has restarted and connected, select Submit."
+      },
+      "ocpp_discovery_confirm": {
+        "description": "Charger {name} has connected to Home Assistant over OCPP. Do you want to set it up?"
+      },
+      "ocpp_pick": {
+        "data": {
+          "charge_point_id": "Charge point"
+        },
+        "data_description": {
+          "charge_point_id": "The chargers connected to Home Assistant, by charge point id."
+        }
+      },
+      "ocpp_port_in_use": {
+        "description": "Home Assistant could not start its OCPP central system, most likely because another program is using TCP port {port}. You can set it up over Bluetooth now, and move it to OCPP later from Reconfigure.",
+        "menu_options": {
+          "bluetooth_to_ocpp": "Try again",
+          "finish_bluetooth": "Continue over Bluetooth"
+        }
+      },
+      "ocpp_read_failed": {
+        "description": "Home Assistant could not read the OCPP settings of {name} over Bluetooth. You can set it up over Bluetooth now, and move it to OCPP later from Reconfigure.",
+        "menu_options": {
+          "bluetooth_to_ocpp": "Try again",
+          "finish_bluetooth": "Continue over Bluetooth"
+        }
+      },
+      "ocpp_timeout": {
+        "description": "{name} did not connect to Home Assistant in time. It may still be restarting, or the address may not be reachable from its network. You can set it up over Bluetooth now, and move it to OCPP later from Reconfigure.",
+        "menu_options": {
+          "finish_bluetooth": "Continue over Bluetooth",
+          "ocpp_finish": "Use OCPP anyway, and wait for it in the background",
+          "ocpp_wait": "Keep waiting"
+        }
+      },
+      "ocpp_write_failed": {
+        "description": "Home Assistant could not change the OCPP settings of {name} over Bluetooth. You can set it up over Bluetooth now, and move it to OCPP later from Reconfigure.",
+        "menu_options": {
+          "bluetooth_to_ocpp": "Try again",
+          "finish_bluetooth": "Continue over Bluetooth"
+        }
+      },
+      "pick_bluetooth": {
         "data": {
           "address": "Device"
         },
@@ -20,6 +84,39 @@
           "address": "The chargers discovered over Bluetooth, listed by serial number."
         },
         "description": "Choose a device to set up"
+      },
+      "reconfigure": {
+        "menu_options": {
+          "reconfigure_bluetooth": "Go back to Bluetooth",
+          "reconfigure_ocpp": "Change the Home Assistant address the charger connects to"
+        }
+      },
+      "reconfigure_bluetooth": {
+        "description": "Home Assistant will reach the charger over Bluetooth again. The charger keeps its OCPP settings, so it can be moved back later; until then it works on its own and keeps its sessions to report later."
+      },
+      "reconfigure_ocpp": {
+        "data": {
+          "host": "Home Assistant address"
+        },
+        "data_description": {
+          "host": "The IP address or host name the charger uses to reach Home Assistant. The detected address is filled in; change it only if the charger is on a different network."
+        },
+        "description": "{name} now connects to `{current}`. It will connect to Home Assistant on port {port} instead, and restart to apply the change.\n\nIf Home Assistant runs in a Docker container without host networking, the detected address is the container's own and the charger cannot reach it: enter the address of the machine running Docker instead, and publish port {port} from the container.",
+        "title": "Point the charger at Home Assistant"
+      },
+      "transport": {
+        "description": "Home Assistant can keep using Bluetooth, or point {name} at its own OCPP central system so it is reached over WiFi instead. OCPP has no range limit, leaves Bluetooth free for the phone app, and reports changes as they happen. The charger then stops using the vendor cloud. You can also stay on Bluetooth now and move to OCPP later, from Reconfigure.",
+        "menu_options": {
+          "bluetooth_to_ocpp": "Move to OCPP (recommended)",
+          "finish_bluetooth": "Stay on Bluetooth"
+        }
+      },
+      "user": {
+        "description": "How should Home Assistant reach the charger?",
+        "menu_options": {
+          "ocpp": "Over OCPP, for a charger already pointed at Home Assistant",
+          "pick_bluetooth": "Over Bluetooth"
+        }
       }
     }
   },
@@ -52,6 +149,13 @@
       }
     },
     "sensor": {
+      "connection_type": {
+        "name": "Connection type",
+        "state": {
+          "ble": "Bluetooth",
+          "ocpp": "OCPP"
+        }
+      },
       "grid_current_limit": {
         "name": "Grid current limit"
       },
@@ -125,6 +229,12 @@
     },
     "no_vehicle_connected": {
       "message": "No vehicle is connected, so charging cannot be started."
+    },
+    "ocpp_not_connected": {
+      "message": "The charger with charge point id {charge_point_id} is not connected to Home Assistant over OCPP."
+    },
+    "ocpp_port_in_use": {
+      "message": "Could not start the OCPP central system on port {port}: {error}"
     }
   },
   "options": {

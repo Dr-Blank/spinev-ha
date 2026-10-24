@@ -5,6 +5,7 @@
       'data': dict({
         'address': '**REDACTED**',
         'serial': '**REDACTED**',
+        'transport': 'ble',
       }),
       'options': dict({
         'connection_mode': 'per_poll',

@@ -96,6 +96,19 @@ The charger is picked up by Bluetooth discovery and appears under
 
 Nothing else is needed: no account and no API key.
 
+### Bluetooth or OCPP
+
+After the charger answers over Bluetooth, setup offers two ways to keep reaching it:
+
+- **Move to OCPP** (recommended). Home Assistant runs its own OCPP 1.6 central system on TCP port 9321 and points the charger at it over Bluetooth, filling in Home Assistant's own address for you to confirm or change. The charger restarts and connects over WiFi within about half a minute. From then on Bluetooth is not used: there is no range limit, the phone app keeps the Bluetooth slot, and status changes arrive as they happen instead of at the next poll. The charger stops talking to the vendor cloud, so the vendor app's remote features stop working.
+- **Stay on Bluetooth**, as described under Configuration.
+
+A charger already pointed at Home Assistant some other way, for example by the vendor's installer (the phone app keeps its OCPP settings behind a service lock), can be added with **Add integration > Spin EV Charger > Over OCPP**. Point it at host `<Home Assistant address>`, port `9321`, path `ocpp`, keeping its charge point id. A charger that connects on its own is also offered as discovered.
+
+**Reconfigure** on the integration reads where the charger connects now, shows it, and asks you to confirm the address before moving it to OCPP. A charger on OCPP can be moved back to Bluetooth the same way; it keeps its OCPP settings and keeps any sessions it records offline to report later.
+
+The central system accepts any charger on the local network and any id tag the charger asks about, as a home charger on the vendor cloud does. Keep port 9321 closed to the internet.
+
 ### Updating
 
 HACS shows an update when a new release is tagged. Download it and restart
@@ -158,6 +171,8 @@ the link is released when the charger or the Bluetooth proxy times it out.
 ## Troubleshooting
 
 **The charger is never discovered**, or **setup fails with "Failed to connect".** The charger must be powered on, nothing else (the phone app, another Home Assistant) may be connected to it, and Home Assistant needs a Bluetooth adapter or an ESPHome Bluetooth proxy in range of the charger. See [docs/connection.md](docs/connection.md) for the full checklist. Under **Settings > Devices & services > Bluetooth**, the **⋮ > Advertisement monitor** shows whether the charger's advertisement is reaching Home Assistant at all.
+
+**There is no Bluetooth adapter or proxy near the charger.** Bluetooth is needed at least once, to point the charger at Home Assistant: the phone app keeps its OCPP settings behind a service lock. The Home Assistant Companion app cannot act as a Bluetooth proxy. An ESP32 board flashed as an [ESPHome Bluetooth proxy](https://esphome.io/components/bluetooth_proxy/) is the cheapest way to add one, and can be moved elsewhere once the charger is on OCPP.
 
 **Entities go unavailable during charging.** The link is being dropped, most
 often because of range or because the phone app took it. Move a Bluetooth

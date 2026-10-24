@@ -1,8 +1,10 @@
 """Fixtures for the Spin EV Charger tests."""
 
-from collections.abc import Generator
+import asyncio
+from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from aiohttp import ClientSession, ClientWebSocketResponse
 from bleak.backends.device import BLEDevice
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -15,14 +17,19 @@ from homeassistant.core import HomeAssistant
 from .const import (
     ADDRESS,
     ADVERTISED_NAME,
+    CLOUD_OCPP_CONFIG,
     ENTRY_DATA,
     ENTRY_OPTIONS,
+    HA_HOST,
     LOAD_BALANCING,
     RANDOM_DELAY,
     SERIAL,
     STATUS,
 )
 from custom_components.spinev.const import DOMAIN
+from custom_components.spinev.hub import async_get_hub
+
+type ConnectCharger = Callable[[str], Awaitable[ClientWebSocketResponse]]
 
 SERVICE_UUID = "49535343-fe7d-4ae5-8fa9-9fafd205e455"
 
@@ -33,6 +40,54 @@ def auto_enable_custom_integrations(
     mock_bluetooth_adapters: None,
 ) -> None:
     """Load the integration from custom_components against a mocked adapter."""
+
+
+@pytest.fixture(autouse=True)
+def ocpp_test_port(socket_enabled: None) -> Generator[None]:
+    """Let the OCPP central system listen on a free port, and fix the detected IP.
+
+    Connections stay limited to 127.0.0.1.
+    """
+    with (
+        patch("custom_components.spinev.hub.OCPP_HOST", "127.0.0.1"),
+        patch("custom_components.spinev.hub.OCPP_PORT", 0),
+        patch(
+            "homeassistant.components.network.async_get_source_ip",
+            return_value=HA_HOST,
+        ),
+    ):
+        yield
+
+
+@pytest.fixture
+async def connect_charger(
+    hass: HomeAssistant,
+) -> AsyncGenerator[ConnectCharger]:
+    """Return a function that connects a charger to the running central system.
+
+    The charger only holds its WebSocket open, which is all a connection
+    needs; requests to it are made through the patched charger client.
+    """
+    session = ClientSession()
+    sockets: list[ClientWebSocketResponse] = []
+
+    async def connect(charge_point_id: str) -> ClientWebSocketResponse:
+        hub = async_get_hub(hass)
+        socket = await session.ws_connect(
+            f"ws://127.0.0.1:{hub.port}/ocpp/{charge_point_id}", protocols=["ocpp1.6"]
+        )
+        sockets.append(socket)
+        # The server side finishes the handshake on its own schedule.
+        async with asyncio.timeout(2):
+            while hub.charge_point(charge_point_id) is None:
+                await asyncio.sleep(0.01)
+        await hass.async_block_till_done(wait_background_tasks=True)
+        return socket
+
+    yield connect
+    for socket in sockets:
+        await socket.close()
+    await session.close()
 
 
 @pytest.fixture
@@ -78,6 +133,7 @@ def mock_charger() -> Generator[AsyncMock]:
     charger.async_get_random_delay.return_value = RANDOM_DELAY
     charger.async_get_load_balancing.return_value = LOAD_BALANCING
     charger.async_get_state_value.return_value = 4
+    charger.async_get_ocpp_config.return_value = CLOUD_OCPP_CONFIG
     charger.__aenter__.return_value = charger
 
     with (
@@ -127,6 +183,7 @@ def mock_config_entry() -> MockConfigEntry:
         unique_id=ADDRESS,
         data=ENTRY_DATA,
         options=ENTRY_OPTIONS,
+        minor_version=2,
     )
 
 

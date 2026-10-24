@@ -24,6 +24,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
+from .const import TRANSPORT_BLE, TRANSPORT_OCPP
 from .coordinator import SpinEvConfigEntry, SpinEvCoordinator
 from .entity import SpinEvEntity
 
@@ -175,6 +176,14 @@ LOAD_BALANCING_SENSORS: tuple[SpinEvLoadBalancingSensorEntityDescription, ...] =
     ),
 )
 
+CONNECTION_TYPE = SensorEntityDescription(
+    key="connection_type",
+    translation_key="connection_type",
+    device_class=SensorDeviceClass.ENUM,
+    options=[TRANSPORT_BLE, TRANSPORT_OCPP],
+    entity_category=EntityCategory.DIAGNOSTIC,
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -186,6 +195,7 @@ async def async_setup_entry(
     entities: list[SensorEntity] = [
         SpinEvSensor(coordinator, description) for description in SENSORS
     ]
+    entities.append(SpinEvConnectionTypeSensor(coordinator, CONNECTION_TYPE))
     if (config := coordinator.load_balancing) is not None:
         entities.extend(
             SpinEvLoadBalancingSensor(coordinator, description, config)
@@ -204,6 +214,19 @@ class SpinEvSensor(SpinEvEntity, SensorEntity):
     def native_value(self) -> StateType:
         """Return the value reported by the charger."""
         return self.entity_description.value_fn(self.coordinator.data)
+
+
+class SpinEvConnectionTypeSensor(SpinEvEntity, SensorEntity):
+    """How Home Assistant reaches the charger."""
+
+    def __init__(
+        self, coordinator: SpinEvCoordinator, description: SensorEntityDescription
+    ) -> None:
+        """Initialize the sensor."""
+        super().__init__(coordinator, description)
+        self._attr_native_value = (
+            TRANSPORT_OCPP if coordinator.over_ocpp else TRANSPORT_BLE
+        )
 
 
 class SpinEvLoadBalancingSensor(SpinEvEntity, SensorEntity):

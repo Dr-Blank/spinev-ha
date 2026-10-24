@@ -3,15 +3,25 @@
 import asyncio
 from collections.abc import Awaitable, Callable
 import logging
-from typing import override
+from typing import TYPE_CHECKING, override
 
 from bleak.backends.device import BLEDevice
 from bleak_retry_connector import close_stale_connections_by_address
 from habluetooth import HaBleakClientWrapper
+from ocpp_csms import (
+    ChargePointEvent,
+    ConnectedEvent,
+    DisconnectedEvent,
+    StatusEvent,
+    TransactionStartedEvent,
+    TransactionStoppedEvent,
+)
 from spinev_ble import (
     BleTransport,
     ChargerStatus,
     LoadBalancingConfig,
+    OcppConfig,
+    OcppTunnelTransport,
     SpinEvBusyError,
     SpinEvCharger,
     SpinEvCommandRejectedError,
@@ -22,19 +32,32 @@ from homeassistant.components import bluetooth
 from homeassistant.components.bluetooth import BluetoothReachabilityIntent
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_ADDRESS
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
 from .const import (
     CHARGING_INTERVAL,
+    CONF_CHARGE_POINT_ID,
     CONF_CONNECTION_MODE,
+    CONF_TRANSPORT,
     DEFAULT_CONNECTION_MODE,
     DOMAIN,
     IDLE_INTERVAL,
     MODE_PERSISTENT,
     REBOOT_SETTLE,
+    TRANSPORT_OCPP,
+)
+from .hub import async_get_hub
+from .util import mask
+
+#: Events after which the charger's status has probably changed.
+_REFRESH_EVENTS = (
+    ConnectedEvent,
+    StatusEvent,
+    TransactionStartedEvent,
+    TransactionStoppedEvent,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,11 +66,15 @@ type SpinEvConfigEntry = ConfigEntry[SpinEvCoordinator]
 
 
 class SpinEvCoordinator(DataUpdateCoordinator[ChargerStatus]):
-    """Poll one charger over Bluetooth.
+    """Poll one charger over Bluetooth or through OCPP.
 
-    The charger accepts a single Bluetooth client at a time, so holding the
-    link open keeps the phone app out. Which of the two behaviours applies is
-    chosen per config entry.
+    Over Bluetooth, the charger accepts a single client at a time, so holding
+    the link open keeps the phone app out. Which of the two behaviours applies
+    is chosen per config entry.
+
+    Over OCPP, the same reads and writes travel through the integration's
+    central system, and what the charger reports there by itself prompts a
+    refresh between polls.
 
     The poll interval also adapts to what the charger is doing: short while a
     vehicle is charging so power and alarms stay current, long while idle so
@@ -65,11 +92,16 @@ class SpinEvCoordinator(DataUpdateCoordinator[ChargerStatus]):
             name=DOMAIN,
             update_interval=CHARGING_INTERVAL,
         )
-        self.address: str = entry.data[CONF_ADDRESS]
-        self._keep_connected = (
+        #: Bluetooth address, which a charger set up over OCPP alone lacks.
+        self.address: str | None = entry.data.get(CONF_ADDRESS)
+        self.over_ocpp = entry.data[CONF_TRANSPORT] == TRANSPORT_OCPP
+        self.charge_point_id: str | None = entry.data.get(CONF_CHARGE_POINT_ID)
+        # The OCPP connection is the charger's own, so holding it costs nothing.
+        self._keep_connected = self.over_ocpp or (
             entry.options.get(CONF_CONNECTION_MODE, DEFAULT_CONNECTION_MODE)
             == MODE_PERSISTENT
         )
+        self._tunnel: OcppTunnelTransport | None = None
         self._charger: SpinEvCharger | None = None
         #: The charger takes one Bluetooth client at a time, and a debounced
         #: write runs outside the platform's own serialization.
@@ -83,19 +115,11 @@ class SpinEvCoordinator(DataUpdateCoordinator[ChargerStatus]):
 
     @override
     async def _async_setup(self) -> None:
-        """Clear any stale link, then read the settings that are not polled."""
-        await close_stale_connections_by_address(self.address)
-        if self._async_ble_device() is None:
-            raise ConfigEntryNotReady(
-                translation_domain=DOMAIN,
-                translation_key="device_not_found",
-                translation_placeholders={
-                    "address": self.address,
-                    "reason": bluetooth.async_address_reachability_diagnostics(
-                        self.hass, self.address, BluetoothReachabilityIntent.CONNECTION
-                    ),
-                },
-            )
+        """Check the charger is reachable, then read the settings not polled."""
+        if self.over_ocpp:
+            self._async_setup_ocpp()
+        else:
+            await self._async_setup_ble()
 
         charger = await self._async_charger()
         try:
@@ -140,6 +164,60 @@ class SpinEvCoordinator(DataUpdateCoordinator[ChargerStatus]):
         self.update_interval = CHARGING_INTERVAL if session_open else IDLE_INTERVAL
         return status
 
+    async def _async_setup_ble(self) -> None:
+        """Clear any stale link and make sure the charger is in range."""
+        address = self._ble_address
+        await close_stale_connections_by_address(address)
+        if self._async_ble_device() is None:
+            raise ConfigEntryNotReady(
+                translation_domain=DOMAIN,
+                translation_key="device_not_found",
+                translation_placeholders={
+                    "address": address,
+                    "reason": bluetooth.async_address_reachability_diagnostics(
+                        self.hass, address, BluetoothReachabilityIntent.CONNECTION
+                    ),
+                },
+            )
+
+    @callback
+    def _async_setup_ocpp(self) -> None:
+        """Follow the charger's OCPP events and make sure it is connected."""
+        charge_point_id = self._charge_point_id
+        hub = async_get_hub(self.hass)
+        self.config_entry.async_on_unload(
+            hub.add_listener(charge_point_id, self._handle_ocpp_event)
+        )
+        if hub.charge_point(charge_point_id) is None:
+            _LOGGER.debug(
+                "Charger %s has not connected over OCPP yet", mask(charge_point_id)
+            )
+            raise ConfigEntryNotReady(
+                translation_domain=DOMAIN,
+                translation_key="ocpp_not_connected",
+                translation_placeholders={"charge_point_id": charge_point_id},
+            )
+
+    @callback
+    def _handle_ocpp_event(self, event: ChargePointEvent) -> None:
+        """Drop a lost tunnel at once, and refresh on news from the charger."""
+        if isinstance(event, DisconnectedEvent):
+            if self._tunnel is not None:
+                _LOGGER.debug(
+                    "OCPP tunnel to charger %s lost", mask(self.charge_point_id)
+                )
+                self._tunnel.notify_disconnected()
+            return
+        if isinstance(event, _REFRESH_EVENTS) and self.data is not None:
+            _LOGGER.debug(
+                "Refreshing charger %s after %s",
+                mask(self.charge_point_id),
+                type(event).__name__,
+            )
+            self.config_entry.async_create_background_task(
+                self.hass, self.async_request_refresh(), f"{DOMAIN} ocpp refresh"
+            )
+
     async def _async_read_load_balancing(self, charger: SpinEvCharger) -> None:
         """Read the load balancing settings, tolerating models without them."""
         # Not every model answers on these registers, and the rest of the
@@ -148,7 +226,11 @@ class SpinEvCoordinator(DataUpdateCoordinator[ChargerStatus]):
         try:
             self.load_balancing = await charger.async_get_load_balancing()
         except SpinEvError as err:
-            _LOGGER.debug("Charger %s has no load balancing: %s", self.address, err)
+            _LOGGER.debug(
+                "Charger %s has no load balancing: %s",
+                mask(self.config_entry.title),
+                err,
+            )
             self.load_balancing = None
 
     async def async_start_charging(self) -> None:
@@ -181,6 +263,37 @@ class SpinEvCoordinator(DataUpdateCoordinator[ChargerStatus]):
         """Set the charger's clock to Home Assistant's time zone, then restart."""
         await self._async_execute(
             lambda charger: charger.async_sync_clock(dt_util.now()), reboots=True
+        )
+
+    async def async_get_ocpp_config(self) -> OcppConfig:
+        """Read where the charger connects for OCPP.
+
+        :raises HomeAssistantError: if the charger cannot be read.
+        """
+        async with self._link:
+            charger = await self._async_charger()
+            try:
+                await charger.async_connect()
+                return await charger.async_get_ocpp_config()
+            except SpinEvError as err:
+                raise HomeAssistantError(
+                    translation_domain=DOMAIN,
+                    translation_key="cannot_read",
+                    translation_placeholders={"error": str(err)},
+                ) from err
+            finally:
+                if not self._keep_connected:
+                    await self.async_release()
+
+    async def async_set_ocpp_config(self, config: OcppConfig) -> None:
+        """Point the charger at an OCPP central system, restarting it."""
+        _LOGGER.debug(
+            "Pointing charger %s at OCPP port %s",
+            mask(self.config_entry.title),
+            config.port,
+        )
+        await self._async_execute(
+            lambda charger: charger.async_set_ocpp_config(config), reboots=True
         )
 
     async def async_reboot(self) -> None:
@@ -241,6 +354,7 @@ class SpinEvCoordinator(DataUpdateCoordinator[ChargerStatus]):
     async def async_release(self) -> None:
         """Drop the link so another client can reach the charger."""
         charger, self._charger = self._charger, None
+        self._tunnel = None
         if charger is not None:
             await charger.async_disconnect()
 
@@ -251,15 +365,20 @@ class SpinEvCoordinator(DataUpdateCoordinator[ChargerStatus]):
                 return self._charger
             await self.async_release()
 
+        if self.over_ocpp:
+            self._charger = self._async_ocpp_charger()
+            return self._charger
+
         ble_device = self._async_ble_device()
         if ble_device is None:
+            address = self._ble_address
             raise UpdateFailed(
                 translation_domain=DOMAIN,
                 translation_key="device_not_found",
                 translation_placeholders={
-                    "address": self.address,
+                    "address": address,
                     "reason": bluetooth.async_address_reachability_diagnostics(
-                        self.hass, self.address, BluetoothReachabilityIntent.CONNECTION
+                        self.hass, address, BluetoothReachabilityIntent.CONNECTION
                     ),
                 },
             )
@@ -269,8 +388,37 @@ class SpinEvCoordinator(DataUpdateCoordinator[ChargerStatus]):
         )
         return self._charger
 
+    @callback
+    def _async_ocpp_charger(self) -> SpinEvCharger:
+        """Return a client that tunnels through the charger's OCPP connection."""
+        charge_point_id = self._charge_point_id
+        charge_point = async_get_hub(self.hass).charge_point(charge_point_id)
+        if charge_point is None:
+            raise UpdateFailed(
+                translation_domain=DOMAIN,
+                translation_key="ocpp_not_connected",
+                translation_placeholders={"charge_point_id": charge_point_id},
+            )
+        _LOGGER.debug("Opening OCPP tunnel to charger %s", mask(charge_point_id))
+        self._tunnel = OcppTunnelTransport(charge_point.async_data_transfer)
+        return SpinEvCharger(self._tunnel)
+
     def _async_ble_device(self) -> BLEDevice | None:
         """Look the charger up in the Bluetooth manager."""
         return bluetooth.async_ble_device_from_address(
-            self.hass, self.address, connectable=True
+            self.hass, self._ble_address, connectable=True
         )
+
+    @property
+    def _ble_address(self) -> str:
+        """Bluetooth address, which an entry using Bluetooth always has."""
+        if TYPE_CHECKING:
+            assert self.address is not None
+        return self.address
+
+    @property
+    def _charge_point_id(self) -> str:
+        """OCPP charge point id, which an entry using OCPP always has."""
+        if TYPE_CHECKING:
+            assert self.charge_point_id is not None
+        return self.charge_point_id

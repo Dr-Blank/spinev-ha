@@ -20,6 +20,24 @@ PLATFORMS: Final = [
 
 CONF_CONNECTION_MODE: Final = "connection_mode"
 CONF_SERIAL: Final = "serial"
+CONF_TRANSPORT: Final = "transport"
+CONF_CHARGE_POINT_ID: Final = "charge_point_id"
+
+#: Reach the charger over Bluetooth.
+TRANSPORT_BLE: Final = "ble"
+#: Reach the charger through the OCPP central system this integration runs.
+TRANSPORT_OCPP: Final = "ocpp"
+
+#: TCP port the integration's OCPP central system listens on.
+OCPP_PORT: Final = 9321
+#: Path the charger is pointed at when it has none of its own.
+DEFAULT_OCPP_PATH: Final = "ocpp"
+#: How long to wait for a repointed charger to reach the central system. It
+#: restarts to apply the change and takes about twenty seconds to connect.
+OCPP_CONNECT_TIMEOUT: Final = timedelta(seconds=120)
+#: How long the central system keeps running after its last user lets go, so
+#: a setup flow handing over to its new entry does not drop the charger.
+OCPP_STOP_DELAY: Final = timedelta(seconds=60)
 
 MODE_PERSISTENT: Final = "persistent"
 MODE_PER_POLL: Final = "per_poll"
