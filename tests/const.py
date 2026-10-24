@@ -22,6 +22,8 @@ ADVERTISED_NAME = f" {SERIAL}_EEFF"
 CHARGE_POINT_ID = f"XY2{SERIAL}"
 #: Address Home Assistant detects as its own.
 HA_HOST = "192.0.2.10"
+#: Why the Bluetooth manager says the charger cannot be connected to.
+REACHABILITY = "No Bluetooth adapter or proxy is in range of it."
 
 ENTRY_DATA = {CONF_ADDRESS: ADDRESS, CONF_SERIAL: SERIAL, CONF_TRANSPORT: TRANSPORT_BLE}
 #: A charger set up before OCPP support, not yet migrated.

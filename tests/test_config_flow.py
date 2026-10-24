@@ -30,6 +30,7 @@ from .const import (
     OCPP_ENTRY_DATA,
     OCPP_ONLY_ENTRY_DATA,
     PRE_OCPP_ENTRY_DATA,
+    REACHABILITY,
     SERIAL,
 )
 from custom_components.spinev.const import (
@@ -187,13 +188,14 @@ async def test_discovery_when_the_charger_is_out_of_range(
     service_info: BluetoothServiceInfoBleak,
     mock_ble_device: MagicMock,
 ) -> None:
-    """An address the Bluetooth manager no longer resolves cannot be set up."""
+    """A charger no connectable scanner hears says why, and is not connected to."""
     mock_ble_device.return_value = None
 
     result = await start_discovered(hass, service_info)
 
     assert result["type"] is FlowResultType.ABORT
-    assert result["reason"] == "cannot_connect"
+    assert result["reason"] == "not_reachable"
+    assert result["description_placeholders"] == {"reason": REACHABILITY}
 
 
 async def start_user_bluetooth(hass: HomeAssistant) -> FlowResult:
@@ -289,6 +291,28 @@ async def test_user_flow_when_the_charger_does_not_answer(
 
     assert result["type"] is FlowResultType.MENU
     assert result["step_id"] == "transport"
+
+
+async def test_user_flow_when_the_charger_is_out_of_range(
+    hass: HomeAssistant,
+    service_info: BluetoothServiceInfoBleak,
+    mock_charger: AsyncMock,
+    mock_ble_device: MagicMock,
+) -> None:
+    """A charger heard only by passive scanners is not blamed on the phone app."""
+    mock_ble_device.return_value = None
+
+    with patch_discovered([service_info]):
+        result = await start_user_bluetooth(hass)
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_ADDRESS: ADDRESS}
+        )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "pick_bluetooth"
+    assert result["errors"] == {"base": "not_reachable"}
+    assert result["description_placeholders"] == {"reason": REACHABILITY}
+    mock_charger.async_get_state_value.assert_not_called()
 
 
 @pytest.mark.parametrize(

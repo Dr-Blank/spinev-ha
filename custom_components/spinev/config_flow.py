@@ -18,6 +18,7 @@ import voluptuous as vol
 
 from homeassistant.components import bluetooth, network
 from homeassistant.components.bluetooth import (
+    BluetoothReachabilityIntent,
     BluetoothServiceInfoBleak,
     async_discovered_service_info,
 )
@@ -219,11 +220,16 @@ class SpinEvConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Confirm a discovered charger."""
         if user_input is not None:
-            if await self._async_charger_answers(self._address, self._serial):
+            if (
+                failure := await self._async_probe(self._address, self._serial)
+            ) is None:
                 return await self.async_step_transport()
             # There is nothing to correct on a confirm step, so a charger that
             # will not answer ends the flow rather than looping on itself.
-            return self.async_abort(reason="cannot_connect")
+            reason, placeholders = failure
+            return self.async_abort(
+                reason=reason, description_placeholders=placeholders
+            )
 
         self._set_confirm_only()
         return self.async_show_form(
@@ -236,6 +242,7 @@ class SpinEvConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Pick a charger from the ones already seen."""
         errors: dict[str, str] = {}
+        placeholders: dict[str, str] = {}
 
         if user_input is not None:
             address = user_input[CONF_ADDRESS]
@@ -243,11 +250,11 @@ class SpinEvConfigFlow(ConfigFlow, domain=DOMAIN):
             await self.async_set_unique_id(address, raise_on_progress=False)
             self._abort_if_unique_id_configured()
             self._abort_if_serial_configured(serial)
-            if await self._async_charger_answers(address, serial):
+            if (failure := await self._async_probe(address, serial)) is None:
                 self._address = address
                 self._serial = serial
                 return await self.async_step_transport()
-            errors["base"] = "cannot_connect"
+            errors["base"], placeholders = failure
         else:
             # The charger only answers a connectable scan, and a passive-only
             # adapter will not have it in range yet on the first pass.
@@ -269,6 +276,7 @@ class SpinEvConfigFlow(ConfigFlow, domain=DOMAIN):
                 {vol.Required(CONF_ADDRESS): vol.In(self._discovered)}
             ),
             errors=errors,
+            description_placeholders=placeholders,
         )
 
     async def async_step_transport(
@@ -698,13 +706,20 @@ class SpinEvConfigFlow(ConfigFlow, domain=DOMAIN):
             BleTransport(ble_device, client_class=HaBleakClientWrapper)
         )
 
-    async def _async_charger_answers(self, address: str, serial: str) -> bool:
-        """Return True if the charger is in range and replies to a read."""
+    async def _async_probe(
+        self, address: str, serial: str
+    ) -> tuple[str, dict[str, str]] | None:
+        """Read the charger, returning the error and its placeholders on failure."""
         ble_device = bluetooth.async_ble_device_from_address(
             self.hass, address, connectable=True
         )
         if ble_device is None:
-            return False
+            # Passive scanners may still hear it, but none of them can connect.
+            return "not_reachable", {
+                "reason": bluetooth.async_address_reachability_diagnostics(
+                    self.hass, address, BluetoothReachabilityIntent.CONNECTION
+                )
+            }
 
         charger = SpinEvCharger(
             BleTransport(ble_device, client_class=HaBleakClientWrapper)
@@ -714,5 +729,5 @@ class SpinEvConfigFlow(ConfigFlow, domain=DOMAIN):
                 await charger.async_get_state_value()
         except SpinEvError as err:
             _LOGGER.debug("Could not reach charger %s: %s", mask(serial), err)
-            return False
-        return True
+            return "cannot_connect", {}
+        return None

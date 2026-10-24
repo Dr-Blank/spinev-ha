@@ -23,6 +23,7 @@ from .const import (
     HA_HOST,
     LOAD_BALANCING,
     RANDOM_DELAY,
+    REACHABILITY,
     SERIAL,
     STATUS,
 )
@@ -164,7 +165,7 @@ def mock_ble_device(ble_device: BLEDevice) -> Generator[MagicMock]:
         ),
         patch(
             "homeassistant.components.bluetooth.async_address_reachability_diagnostics",
-            return_value="No Bluetooth adapter or proxy is in range of it.",
+            return_value=REACHABILITY,
         ),
         patch(
             "homeassistant.components.bluetooth.async_request_active_scan",

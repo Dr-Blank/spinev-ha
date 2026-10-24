@@ -6,6 +6,7 @@
       "cannot_connect": "Failed to connect. The charger accepts one Bluetooth client at a time, so close the phone app and try again.",
       "no_devices_found": "No Spin EV charger was found over Bluetooth. Check that the charger is powered on, that no phone app is connected to it, and that Home Assistant has a Bluetooth adapter or an ESPHome Bluetooth proxy in range of the charger.",
       "not_loaded": "The charger must be set up and working before its connection can be changed.",
+      "not_reachable": "Home Assistant has no Bluetooth adapter or proxy that can connect to the charger. {reason}",
       "not_supported": "This Bluetooth device is not a Spin EV charger.",
       "ocpp_port_in_use": "Home Assistant could not start its OCPP central system, most likely because another program is using TCP port 9321.",
       "reconfigure_successful": "Reconfiguration was successful"
@@ -13,7 +14,8 @@
     "error": {
       "cannot_connect": "Could not reach the charger over Bluetooth. Close the phone app and try again.",
       "invalid_host": "Enter the address of this Home Assistant.",
-      "no_charger_connected": "No new charger has connected yet. Check the address on the charger, wait for it to restart, then try again."
+      "no_charger_connected": "No new charger has connected yet. Check the address on the charger, wait for it to restart, then try again.",
+      "not_reachable": "Home Assistant has no Bluetooth adapter or proxy that can connect to the charger. {reason}"
     },
     "flow_title": "{name}",
     "progress": {
