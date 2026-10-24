@@ -68,11 +68,18 @@
         "description": "Home Assistant will reach the charger over Bluetooth again. The charger keeps its OCPP settings, so it can be moved back later; until then it works on its own and keeps its sessions to report later."
       },
       "ocpp_timeout": {
-        "description": "{name} did not connect to Home Assistant in time. It may still be restarting, or the address may not be reachable from its network. You can set it up over Bluetooth now, and move it to OCPP later from Reconfigure.",
+        "description": "{name} did not connect to Home Assistant in time. It may still be restarting, or the address may not be reachable from its network. You can set it up over Bluetooth now, and move it to OCPP later from Reconfigure. Continuing over Bluetooth gives the charger back its previous OCPP settings, which restarts it again.",
         "menu_options": {
           "ocpp_wait": "Keep waiting",
           "ocpp_finish": "Use OCPP anyway, and wait for it in the background",
           "finish_bluetooth": "Continue over Bluetooth"
+        }
+      },
+      "ocpp_restore_failed": {
+        "description": "Home Assistant could not give {name} back its previous OCPP settings over Bluetooth. If you continue anyway, the charger keeps trying to reach Home Assistant over OCPP, and stays off the vendor cloud.",
+        "menu_options": {
+          "finish_bluetooth": "Try again",
+          "finish_bluetooth_as_is": "Continue over Bluetooth anyway"
         }
       },
       "ocpp_port_in_use": {

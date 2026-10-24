@@ -157,6 +157,8 @@ class SpinEvConfigFlow(ConfigFlow, domain=DOMAIN):
         self._discovered: dict[str, str] = {}
         self._holds_hub = False
         self._current: OcppConfig | None = None
+        #: What the charger connected to before this flow pointed it here.
+        self._original: OcppConfig | None = None
         self._charge_point_id: str | None = None
         self._wait_task: asyncio.Task[bool] | None = None
         self._ocpp_candidates: dict[str, str] = {}
@@ -282,7 +284,42 @@ class SpinEvConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_finish_bluetooth(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Store a charger reached over Bluetooth."""
+        """Store a charger reached over Bluetooth.
+
+        A charger this flow pointed here is first given back its previous
+        OCPP settings, so it does not keep trying to reach Home Assistant.
+        """
+        if self._original is not None:
+            _LOGGER.debug(
+                "Giving charger %s back its previous OCPP settings; it restarts",
+                mask(self._serial),
+            )
+            try:
+                await self._async_write_ocpp_config(self._original)
+            except (SpinEvError, HomeAssistantError) as err:
+                _LOGGER.debug(
+                    "Could not restore the OCPP settings of charger %s: %s",
+                    mask(self._serial),
+                    err,
+                )
+                return await self.async_step_ocpp_restore_failed()
+            self._original = None
+        return await self.async_step_finish_bluetooth_as_is()
+
+    async def async_step_ocpp_restore_failed(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Offer to try the restore again, or to leave the charger pointed here."""
+        return self.async_show_menu(
+            step_id="ocpp_restore_failed",
+            menu_options=["finish_bluetooth", "finish_bluetooth_as_is"],
+            description_placeholders={"name": self._serial},
+        )
+
+    async def async_step_finish_bluetooth_as_is(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Store a charger reached over Bluetooth, leaving its OCPP settings."""
         return self.async_create_entry(
             title=self._serial,
             data={
@@ -404,6 +441,8 @@ class SpinEvConfigFlow(ConfigFlow, domain=DOMAIN):
                     return await self.async_step_ocpp_write_failed()
                 errors["base"] = "cannot_connect"
             else:
+                if self._original is None:
+                    self._original = current
                 self._current = wanted
                 return await self.async_step_ocpp_wait()
 

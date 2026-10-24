@@ -366,6 +366,20 @@ async def test_bluetooth_to_ocpp_keeps_a_charger_already_pointed_here(
     async_get_hub(hass).async_release()
 
 
+async def time_out_moving_to_ocpp(
+    hass: HomeAssistant, service_info: BluetoothServiceInfoBleak
+) -> FlowResult:
+    """Point a discovered charger here and let it fail to connect."""
+    with patch("custom_components.spinev.config_flow.OCPP_CONNECT_TIMEOUT") as timeout:
+        timeout.total_seconds.return_value = 0.01
+        result = await start_moving_to_ocpp(hass, service_info)
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_HOST: HA_HOST}
+        )
+        await hass.async_block_till_done()
+        return await hass.config_entries.flow.async_configure(result["flow_id"])
+
+
 @pytest.mark.parametrize(
     ("next_step_id", "data"),
     [
@@ -381,14 +395,7 @@ async def test_bluetooth_to_ocpp_when_the_charger_does_not_connect(
     data: dict[str, str],
 ) -> None:
     """A charger that never connects can still be kept on either transport."""
-    with patch("custom_components.spinev.config_flow.OCPP_CONNECT_TIMEOUT") as timeout:
-        timeout.total_seconds.return_value = 0.01
-        result = await start_moving_to_ocpp(hass, service_info)
-        result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], {CONF_HOST: HA_HOST}
-        )
-        await hass.async_block_till_done()
-        result = await hass.config_entries.flow.async_configure(result["flow_id"])
+    result = await time_out_moving_to_ocpp(hass, service_info)
 
     assert result["type"] is FlowResultType.MENU
     assert result["step_id"] == "ocpp_timeout"
@@ -400,6 +407,71 @@ async def test_bluetooth_to_ocpp_when_the_charger_does_not_connect(
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"] == data
+
+
+@pytest.mark.usefixtures("mock_ble_device")
+async def test_bluetooth_after_a_timeout_restores_the_ocpp_settings(
+    hass: HomeAssistant,
+    service_info: BluetoothServiceInfoBleak,
+    mock_charger: AsyncMock,
+) -> None:
+    """A charger kept on Bluetooth goes back to where it connected before."""
+    original = mock_charger.async_get_ocpp_config.return_value
+    result = await time_out_moving_to_ocpp(hass, service_info)
+
+    await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": "finish_bluetooth"}
+    )
+
+    assert mock_charger.async_set_ocpp_config.await_count == 2
+    mock_charger.async_set_ocpp_config.assert_awaited_with(original)
+
+
+@pytest.mark.usefixtures("mock_ble_device")
+async def test_bluetooth_after_a_timeout_leaves_a_charger_pointed_here_before(
+    hass: HomeAssistant,
+    service_info: BluetoothServiceInfoBleak,
+    mock_charger: AsyncMock,
+) -> None:
+    """Settings this flow never changed are not written back."""
+    # Holding the central system first gives it the port the settings name.
+    await async_get_hub(hass).async_acquire()
+    mock_charger.async_get_ocpp_config.return_value = ha_ocpp_config(hass)
+    result = await time_out_moving_to_ocpp(hass, service_info)
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": "finish_bluetooth"}
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    mock_charger.async_set_ocpp_config.assert_not_awaited()
+    async_get_hub(hass).async_release()
+
+
+@pytest.mark.usefixtures("mock_ble_device")
+async def test_bluetooth_after_a_timeout_when_restoring_fails(
+    hass: HomeAssistant,
+    service_info: BluetoothServiceInfoBleak,
+    mock_charger: AsyncMock,
+) -> None:
+    """A failed restore can be tried again, or skipped."""
+    result = await time_out_moving_to_ocpp(hass, service_info)
+    mock_charger.async_set_ocpp_config.side_effect = SpinEvError("busy")
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": "finish_bluetooth"}
+    )
+
+    assert result["type"] is FlowResultType.MENU
+    assert result["step_id"] == "ocpp_restore_failed"
+    assert result["menu_options"] == ["finish_bluetooth", "finish_bluetooth_as_is"]
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"next_step_id": "finish_bluetooth_as_is"}
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"] == ENTRY_DATA
 
 
 @pytest.mark.usefixtures("mock_ble_device")
