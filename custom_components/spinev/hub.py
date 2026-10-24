@@ -16,7 +16,11 @@ from ocpp_csms import (
     DisconnectedEvent,
 )
 
-from homeassistant.config_entries import SOURCE_INTEGRATION_DISCOVERY
+from homeassistant.config_entries import (
+    SOURCE_INTEGRATION_DISCOVERY,
+    ConfigEntry,
+    ConfigEntryState,
+)
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
@@ -24,7 +28,14 @@ from homeassistant.helpers import discovery_flow
 from homeassistant.helpers.event import async_call_later
 from homeassistant.util.hass_dict import HassKey
 
-from .const import CONF_CHARGE_POINT_ID, DOMAIN, OCPP_PORT, OCPP_STOP_DELAY
+from .const import (
+    CONF_CHARGE_POINT_ID,
+    CONF_TRANSPORT,
+    DOMAIN,
+    OCPP_PORT,
+    OCPP_STOP_DELAY,
+    TRANSPORT_OCPP,
+)
 from .util import is_same_charger, mask
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,7 +65,8 @@ class SpinEvOcppHub:
 
     Config entries and setup flows each hold the hub while they use it. The
     central system starts with the first holder and stops a little after the
-    last one lets go.
+    last one lets go, unless an entry is still waiting for its charger to
+    connect.
 
     A charger that connects without belonging to an entry, or to a flow
     waiting for it, starts a discovery flow.
@@ -124,15 +136,32 @@ class SpinEvOcppHub:
                 "OCPP central system unused, stopping in %s unless held again",
                 OCPP_STOP_DELAY,
             )
-            self._stop_later = async_call_later(
-                self.hass, OCPP_STOP_DELAY, self._async_stop_if_unused
-            )
+            self._async_stop_later()
+
+    @callback
+    def _async_stop_later(self) -> None:
+        self._stop_later = async_call_later(
+            self.hass, OCPP_STOP_DELAY, self._async_stop_if_unused
+        )
 
     async def _async_stop_if_unused(self, _now: datetime) -> None:
         async with self._lock:
             self._stop_later = None
-            if self._users == 0:
-                await self._async_stop()
+            if self._users:
+                return
+            # An entry retrying setup lets go between attempts, and its retries
+            # grow further apart than the stop delay, so stopping would turn
+            # its charger away every time it reconnects.
+            if any(
+                entry.state is ConfigEntryState.SETUP_RETRY
+                for entry in self._ocpp_entries()
+            ):
+                _LOGGER.debug(
+                    "OCPP central system kept for an entry waiting for its charger"
+                )
+                self._async_stop_later()
+                return
+            await self._async_stop()
 
     async def _async_handle_ha_stop(self, _event: Event) -> None:
         self._unsub_ha_stop = None
@@ -225,10 +254,17 @@ class SpinEvOcppHub:
         self._log_event(event)
         for listener in list(self._listeners.get(charge_point_id, ())):
             listener(event)
-        if (
-            isinstance(event, ConnectedEvent)
-            and charge_point_id not in self._expected
-            and not self._is_configured(charge_point_id)
+        if not isinstance(event, ConnectedEvent):
+            return
+        for entry in self._ocpp_entries(charge_point_id):
+            if entry.state is ConfigEntryState.SETUP_RETRY:
+                _LOGGER.debug(
+                    "Charger %s connected, setting up its entry",
+                    mask(charge_point_id),
+                )
+                self.hass.config_entries.async_schedule_reload(entry.entry_id)
+        if charge_point_id not in self._expected and not self._is_configured(
+            charge_point_id
         ):
             _LOGGER.debug(
                 "Charger %s belongs to no entry, offering it for setup",
@@ -260,6 +296,22 @@ class SpinEvOcppHub:
             )
         else:
             _LOGGER.debug("Charger %s sent %s", charger, type(event).__name__)
+
+    @callback
+    def _ocpp_entries(self, charge_point_id: str | None = None) -> list[ConfigEntry]:
+        """Return the entries reaching their charger over OCPP.
+
+        Only the one charger's entries when ``charge_point_id`` is given.
+        """
+        return [
+            entry
+            for entry in self.hass.config_entries.async_entries(DOMAIN)
+            if entry.data.get(CONF_TRANSPORT) == TRANSPORT_OCPP
+            and (
+                charge_point_id is None
+                or entry.data.get(CONF_CHARGE_POINT_ID) == charge_point_id
+            )
+        ]
 
     @callback
     def _is_configured(self, charge_point_id: str) -> bool:

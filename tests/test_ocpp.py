@@ -214,6 +214,76 @@ async def test_central_system_held_again_keeps_running(
     hub.async_release()
 
 
+@pytest.mark.usefixtures("mock_charger")
+async def test_central_system_kept_for_an_entry_retrying_setup(
+    hass: HomeAssistant,
+    ocpp_entry: MockConfigEntry,
+    freezer: FrozenDateTimeFactory,
+    connect_charger: ConnectCharger,
+) -> None:
+    """Retries further apart than the stop delay still find the port open."""
+    ocpp_entry.add_to_hass(hass)
+    ocpp_entry.mock_state(hass, ConfigEntryState.SETUP_RETRY)
+    hub = async_get_hub(hass)
+    await hub.async_acquire()
+    hub.async_release()
+
+    # Twice, as the first check only puts the stop off.
+    freezer.tick(OCPP_STOP_DELAY)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    freezer.tick(OCPP_STOP_DELAY)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    await connect_charger(CHARGE_POINT_ID)
+    assert hub.connected_ids() == [CHARGE_POINT_ID]
+
+
+async def test_central_system_stops_once_no_entry_is_retrying(
+    hass: HomeAssistant,
+    ocpp_entry: MockConfigEntry,
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """The port is given back once the entry it was kept for gives up."""
+    ocpp_entry.add_to_hass(hass)
+    ocpp_entry.mock_state(hass, ConfigEntryState.SETUP_RETRY)
+    hub = async_get_hub(hass)
+    await hub.async_acquire()
+    port = hub.port
+    hub.async_release()
+    freezer.tick(OCPP_STOP_DELAY)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    ocpp_entry.mock_state(hass, ConfigEntryState.NOT_LOADED)
+    freezer.tick(OCPP_STOP_DELAY)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    async with ClientSession() as session:
+        with pytest.raises(ClientConnectorError):
+            await session.ws_connect(f"ws://127.0.0.1:{port}/ocpp/{CHARGE_POINT_ID}")
+
+
+@pytest.mark.usefixtures("mock_charger")
+async def test_entry_set_up_as_soon_as_its_charger_connects(
+    hass: HomeAssistant,
+    ocpp_entry: MockConfigEntry,
+    connect_charger: ConnectCharger,
+) -> None:
+    """A charger connecting between retries does not wait for the next one."""
+    ocpp_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(ocpp_entry.entry_id)
+    await hass.async_block_till_done()
+    assert ocpp_entry.state is ConfigEntryState.SETUP_RETRY
+
+    await connect_charger(CHARGE_POINT_ID)
+    await hass.async_block_till_done()
+
+    assert ocpp_entry.state is ConfigEntryState.LOADED
+
+
 @pytest.mark.usefixtures("mock_charger", "mock_ble_device")
 async def test_entries_from_before_ocpp_are_migrated(hass: HomeAssistant) -> None:
     """Every entry made before OCPP support used Bluetooth."""
