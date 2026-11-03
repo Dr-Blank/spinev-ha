@@ -7,7 +7,7 @@
     ":automergeDigest"
   ],
   "timezone": "Asia/Kolkata",
-  "schedule": ["before 6am on monday"],
+  "schedule": ["* 0-12 * * 1"],
   "platformAutomerge": false,
   "rangeStrategy": "update-lockfile",
   "lockFileMaintenance": {
@@ -45,7 +45,7 @@
       "groupName": "ruff"
     },
     {
-      "description": "manifest.json and pyproject.toml pin the same requirements, and a bump needs an integration release",
+      "description": "A requirement bump needs an integration release; manifest.json keeps a floor at or below the version Home Assistant core pins",
       "matchManagers": ["homeassistant-manifest"],
       "groupName": "integration requirements",
       "automerge": false

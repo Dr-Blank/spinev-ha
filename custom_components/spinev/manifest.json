@@ -17,6 +17,6 @@
   "issue_tracker": "https://github.com/Dr-Blank/spinev-ha/issues",
   "loggers": ["ocpp_csms", "spinev_ble"],
   "quality_scale": "bronze",
-  "requirements": ["ocpp-csms==0.1.0", "spinev-ble[bleak]==0.5.1"],
+  "requirements": ["ocpp-csms==0.1.0", "spinev-ble[bleak]>=0.5.0"],
   "version": "0.7.0"
 }
