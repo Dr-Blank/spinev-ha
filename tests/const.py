@@ -4,7 +4,7 @@ from spinev_ble import ChargerState, ChargerStatus, LoadBalancingConfig, OcppCon
 
 from homeassistant.const import CONF_ADDRESS
 
-from custom_components.spinev.const import (
+from custom_components.exicom_spin_ble.const import (
     CONF_CHARGE_POINT_ID,
     CONF_CONNECTION_MODE,
     CONF_SERIAL,

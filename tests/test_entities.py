@@ -13,7 +13,7 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from custom_components.spinev.const import PLATFORMS
+from custom_components.exicom_spin_ble.const import PLATFORMS
 
 
 @pytest.mark.parametrize("platform", PLATFORMS)
@@ -29,7 +29,7 @@ async def test_entities(
 ) -> None:
     """Each platform registers the entities it is expected to."""
     mock_config_entry.add_to_hass(hass)
-    with patch("custom_components.spinev.PLATFORMS", [platform]):
+    with patch("custom_components.exicom_spin_ble.PLATFORMS", [platform]):
         await hass.config_entries.async_setup(mock_config_entry.entry_id)
         await hass.async_block_till_done()
 

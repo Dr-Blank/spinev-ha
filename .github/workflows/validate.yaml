@@ -15,7 +15,3 @@ permissions:
 jobs:
   validate:
     uses: Dr-Blank/ha-integration-ci/.github/workflows/validate.yaml@15390ee063de87b9bbf0d5cd607adf325866757e # v1.0.0
-    with:
-      # The domain is not in home-assistant/brands, which only accepts
-      # integrations shipped with core.
-      hacs-ignore: brands

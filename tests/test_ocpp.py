@@ -30,8 +30,8 @@ from .const import (
     PRE_OCPP_ENTRY_DATA,
     SERIAL,
 )
-from custom_components.spinev.const import DOMAIN, OCPP_STOP_DELAY
-from custom_components.spinev.hub import async_get_hub
+from custom_components.exicom_spin_ble.const import DOMAIN, OCPP_STOP_DELAY
+from custom_components.exicom_spin_ble.hub import async_get_hub
 
 STATE_SENSOR = "sensor.123456789012_state"
 CONNECTION_TYPE_SENSOR = "sensor.123456789012_connection_type"
@@ -97,7 +97,7 @@ async def test_setup_tunnels_through_ocpp(
     """A charger on OCPP is read through its DataTransfer tunnel."""
     ocpp_entry.add_to_hass(hass)
     with patch(
-        "custom_components.spinev.coordinator.OcppTunnelTransport",
+        "custom_components.exicom_spin_ble.coordinator.OcppTunnelTransport",
         wraps=OcppTunnelTransport,
     ) as tunnel:
         await hass.config_entries.async_setup(ocpp_entry.entry_id)
@@ -133,7 +133,7 @@ async def test_setup_retries_when_the_port_is_taken(
     ocpp_entry.add_to_hass(hass)
 
     with patch(
-        "custom_components.spinev.hub.CentralSystem.async_start",
+        "custom_components.exicom_spin_ble.hub.CentralSystem.async_start",
         side_effect=CsmsConnectionError("in use"),
     ):
         await hass.config_entries.async_setup(ocpp_entry.entry_id)
@@ -312,7 +312,7 @@ async def test_logs_carry_no_private_data(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Debug logs name chargers by a masked id, and never the host or address."""
-    caplog.set_level(logging.DEBUG, logger="custom_components.spinev")
+    caplog.set_level(logging.DEBUG, logger="custom_components.exicom_spin_ble")
 
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": SOURCE_BLUETOOTH}, data=service_info
@@ -333,7 +333,7 @@ async def test_logs_carry_no_private_data(
     messages = [
         record.getMessage()
         for record in caplog.records
-        if record.name.startswith("custom_components.spinev")
+        if record.name.startswith("custom_components.exicom_spin_ble")
     ]
     assert any("…9012" in message for message in messages)
     for private in (SERIAL, CHARGE_POINT_ID, ADDRESS, HA_HOST, "ocpp.example.com"):

@@ -33,7 +33,7 @@ from .const import (
     REACHABILITY,
     SERIAL,
 )
-from custom_components.spinev.const import (
+from custom_components.exicom_spin_ble.const import (
     CONF_CHARGE_POINT_ID,
     CONF_CONNECTION_MODE,
     CONF_SERIAL,
@@ -42,7 +42,7 @@ from custom_components.spinev.const import (
     MODE_PERSISTENT,
     TRANSPORT_BLE,
 )
-from custom_components.spinev.hub import async_get_hub
+from custom_components.exicom_spin_ble.hub import async_get_hub
 
 
 @contextmanager
@@ -51,7 +51,7 @@ def patch_discovered(
 ) -> Iterator[None]:
     """Pretend the Bluetooth manager has seen exactly these devices."""
     with patch(
-        "custom_components.spinev.config_flow.async_discovered_service_info",
+        "custom_components.exicom_spin_ble.config_flow.async_discovered_service_info",
         return_value=service_infos,
     ):
         yield
@@ -394,7 +394,9 @@ async def time_out_moving_to_ocpp(
     hass: HomeAssistant, service_info: BluetoothServiceInfoBleak
 ) -> FlowResult:
     """Point a discovered charger here and let it fail to connect."""
-    with patch("custom_components.spinev.config_flow.OCPP_CONNECT_TIMEOUT") as timeout:
+    with patch(
+        "custom_components.exicom_spin_ble.config_flow.OCPP_CONNECT_TIMEOUT"
+    ) as timeout:
         timeout.total_seconds.return_value = 0.01
         result = await start_moving_to_ocpp(hass, service_info)
         result = await hass.config_entries.flow.async_configure(
@@ -591,7 +593,7 @@ async def test_bluetooth_to_ocpp_when_the_port_is_taken(
 ) -> None:
     """A central system that cannot listen still lets Bluetooth be used."""
     with patch(
-        "custom_components.spinev.hub.CentralSystem.async_start",
+        "custom_components.exicom_spin_ble.hub.CentralSystem.async_start",
         side_effect=CsmsConnectionError("address in use"),
     ):
         result = await start_moving_to_ocpp(hass, service_info)
@@ -635,7 +637,9 @@ async def test_ocpp_only(hass: HomeAssistant, connect_charger: ConnectCharger) -
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "ocpp_pick"
 
-    with patch("custom_components.spinev.async_setup_entry", return_value=True):
+    with patch(
+        "custom_components.exicom_spin_ble.async_setup_entry", return_value=True
+    ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], {CONF_CHARGE_POINT_ID: CHARGE_POINT_ID}
         )
@@ -682,7 +686,9 @@ async def test_unknown_charger_is_discovered(
     assert flows[0]["step_id"] == "ocpp_discovery_confirm"
     assert flows[0]["context"]["source"] == SOURCE_INTEGRATION_DISCOVERY
 
-    with patch("custom_components.spinev.async_setup_entry", return_value=True):
+    with patch(
+        "custom_components.exicom_spin_ble.async_setup_entry", return_value=True
+    ):
         result = await hass.config_entries.flow.async_configure(flows[0]["flow_id"], {})
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
@@ -742,7 +748,7 @@ async def test_discovery_over_ocpp_of_a_configured_charger(
 
 
 # The write restarts the charger; nothing here needs to wait that out.
-@patch("custom_components.spinev.coordinator.REBOOT_SETTLE", timedelta(0))
+@patch("custom_components.exicom_spin_ble.coordinator.REBOOT_SETTLE", timedelta(0))
 async def test_reconfigure_bluetooth_to_ocpp(
     hass: HomeAssistant,
     init_integration: MockConfigEntry,
@@ -796,7 +802,7 @@ async def test_reconfigure_when_the_port_is_taken(
 ) -> None:
     """A loaded entry stays as it is, so the flow ends with the reason."""
     with patch(
-        "custom_components.spinev.hub.CentralSystem.async_start",
+        "custom_components.exicom_spin_ble.hub.CentralSystem.async_start",
         side_effect=CsmsConnectionError("address in use"),
     ):
         result = await init_integration.start_reconfigure_flow(hass)

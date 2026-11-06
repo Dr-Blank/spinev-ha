@@ -10,6 +10,6 @@ set -euo pipefail
 DEST="${HA_CORE:-$HOME/projects/ha-core}/config/custom_components"
 
 mkdir -p "$DEST"
-rm -rf "${DEST:?}/spinev"
-ln -s /workspaces/spinev-ha/custom_components/spinev "$DEST/spinev"
-echo "linked $DEST/spinev -> /workspaces/spinev-ha/custom_components/spinev"
+rm -rf "${DEST:?}/exicom_spin_ble"
+ln -s /workspaces/spinev-ha/custom_components/exicom_spin_ble "$DEST/exicom_spin_ble"
+echo "linked $DEST/exicom_spin_ble -> /workspaces/spinev-ha/custom_components/exicom_spin_ble"

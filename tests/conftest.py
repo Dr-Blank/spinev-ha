@@ -27,8 +27,8 @@ from .const import (
     SERIAL,
     STATUS,
 )
-from custom_components.spinev.const import DOMAIN
-from custom_components.spinev.hub import async_get_hub
+from custom_components.exicom_spin_ble.const import DOMAIN
+from custom_components.exicom_spin_ble.hub import async_get_hub
 
 type ConnectCharger = Callable[[str], Awaitable[ClientWebSocketResponse]]
 
@@ -50,8 +50,8 @@ def ocpp_test_port(socket_enabled: None) -> Generator[None]:
     Connections stay limited to 127.0.0.1.
     """
     with (
-        patch("custom_components.spinev.hub.OCPP_HOST", "127.0.0.1"),
-        patch("custom_components.spinev.hub.OCPP_PORT", 0),
+        patch("custom_components.exicom_spin_ble.hub.OCPP_HOST", "127.0.0.1"),
+        patch("custom_components.exicom_spin_ble.hub.OCPP_PORT", 0),
         patch(
             "homeassistant.components.network.async_get_source_ip",
             return_value=HA_HOST,
@@ -139,11 +139,11 @@ def mock_charger() -> Generator[AsyncMock]:
 
     with (
         patch(
-            "custom_components.spinev.coordinator.SpinEvCharger",
+            "custom_components.exicom_spin_ble.coordinator.SpinEvCharger",
             return_value=charger,
         ),
         patch(
-            "custom_components.spinev.config_flow.SpinEvCharger",
+            "custom_components.exicom_spin_ble.config_flow.SpinEvCharger",
             return_value=charger,
         ),
     ):
@@ -161,7 +161,7 @@ def mock_ble_device(ble_device: BLEDevice) -> Generator[MagicMock]:
             return_value=ble_device,
         ) as mock_lookup,
         patch(
-            "custom_components.spinev.coordinator.close_stale_connections_by_address"
+            "custom_components.exicom_spin_ble.coordinator.close_stale_connections_by_address"
         ),
         patch(
             "homeassistant.components.bluetooth.async_address_reachability_diagnostics",

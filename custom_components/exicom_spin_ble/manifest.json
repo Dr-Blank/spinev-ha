@@ -1,5 +1,5 @@
 {
-  "domain": "spinev",
+  "domain": "exicom_spin_ble",
   "name": "Spin EV Charger",
   "after_dependencies": ["frontend", "http"],
   "bluetooth": [
@@ -8,6 +8,7 @@
       "service_uuid": "49535343-fe7d-4ae5-8fa9-9fafd205e455"
     }
   ],
+  "categories": ["energy.ev_charging"],
   "codeowners": ["@Dr-Blank"],
   "config_flow": true,
   "dependencies": ["bluetooth_adapters", "network"],

@@ -25,14 +25,14 @@ repos:
     hooks:
       - id: mypy
         name: mypy
-        entry: uv run --no-sync mypy custom_components/spinev
+        entry: uv run --no-sync mypy custom_components/exicom_spin_ble
         language: system
         types: [python]
         pass_filenames: false
       # Too slow for every commit; CI runs it with --hook-stage manual.
       - id: pytest
         name: pytest
-        entry: uv run --no-sync pytest --cov=custom_components/spinev
+        entry: uv run --no-sync pytest --cov=custom_components/exicom_spin_ble
         language: system
         types: [python]
         pass_filenames: false

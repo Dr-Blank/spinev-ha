@@ -83,14 +83,14 @@ only loaded at startup.
 
 ### Manual
 
-Copy `custom_components/spinev` into your Home Assistant `config/custom_components/`
+Copy `custom_components/exicom_spin_ble` into your Home Assistant `config/custom_components/`
 directory and restart Home Assistant.
 
 ### Setup
 
 Add the charger with **Add integration > Spin EV Charger**. **Over Bluetooth** lists the chargers in range by serial. The charger does not advertise anything Home Assistant can discover it by, so it does not show up as discovered on its own.
 
-[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=spinev)
+[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=exicom_spin_ble)
 
 Nothing else is needed: no account and no API key.
 

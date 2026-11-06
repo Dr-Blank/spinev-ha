@@ -11,7 +11,7 @@
  */
 
 const CARD_TYPE = "spinev-charger-card";
-const INTEGRATION = "spinev";
+const INTEGRATION = "exicom_spin_ble";
 
 /**
  * How each role is found among the device's entities. A role names either the

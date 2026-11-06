@@ -3,9 +3,9 @@ _commit: v1.1.0
 _src_path: https://github.com/Dr-Blank/ha-integration-ci
 description: Home Assistant integration for Exicom Spin EV chargers
 display_name: Spin EV Charger
-domain: spinev
+domain: exicom_spin_ble
 editable_library: ''
-hacs_ignore: brands
+hacs_ignore: ''
 homeassistant_min: 2025.12.0
 mypy_untyped_modules:
 - bleak_retry_connector.*

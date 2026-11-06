@@ -7,12 +7,12 @@
 # so restart it after running this.
 set -euo pipefail
 
-SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/custom_components/spinev"
+SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/custom_components/exicom_spin_ble"
 DEST="${HA_CORE:-$HOME/projects/ha-core}/config/custom_components"
 
 mkdir -p "$DEST"
-rm -rf "${DEST:?}/spinev"
-cp -r "$SRC" "$DEST/spinev"
-find "$DEST/spinev" -name '__pycache__' -type d -prune -exec rm -rf {} +
+rm -rf "${DEST:?}/exicom_spin_ble"
+cp -r "$SRC" "$DEST/exicom_spin_ble"
+find "$DEST/exicom_spin_ble" -name '__pycache__' -type d -prune -exec rm -rf {} +
 
-echo "installed to $DEST/spinev"
+echo "installed to $DEST/exicom_spin_ble"

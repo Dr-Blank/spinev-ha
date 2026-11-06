@@ -11,7 +11,7 @@ from spinev_ble import SpinEvError
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.spinev.const import WRITE_DEBOUNCE
+from custom_components.exicom_spin_ble.const import WRITE_DEBOUNCE
 
 CURRENT_LIMIT = "number.123456789012_current_limit"
 

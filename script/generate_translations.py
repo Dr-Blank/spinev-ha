@@ -17,8 +17,10 @@ import homeassistant
 REFERENCE = re.compile(r"^\[%key:(.+)%\]$")
 
 REPO = Path(__file__).resolve().parent.parent
-STRINGS = REPO / "custom_components" / "spinev" / "strings.json"
-TRANSLATION = REPO / "custom_components" / "spinev" / "translations" / "en.json"
+STRINGS = REPO / "custom_components" / "exicom_spin_ble" / "strings.json"
+TRANSLATION = (
+    REPO / "custom_components" / "exicom_spin_ble" / "translations" / "en.json"
+)
 CORE = Path(homeassistant.__file__).parent
 
 

@@ -16,7 +16,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import IDLE_STATUS, STATUS
-from custom_components.spinev.const import (
+from custom_components.exicom_spin_ble.const import (
     CHARGING_INTERVAL,
     CONF_CONNECTION_MODE,
     IDLE_INTERVAL,

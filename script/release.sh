@@ -5,7 +5,7 @@
 #
 # Usage: release.sh <major|minor|patch|X.Y.Z>
 #
-# Home Assistant reads the version from custom_components/spinev/manifest.json
+# Home Assistant reads the version from custom_components/exicom_spin_ble/manifest.json
 # and HACS offers an update when a new tag is released, so the files have to
 # agree with the tag. The Release workflow refuses a tag that does not.
 set -euo pipefail
@@ -14,7 +14,7 @@ usage="usage: release.sh <major|minor|patch|X.Y.Z>"
 bump="${1:?$usage}"
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-manifest="custom_components/spinev/manifest.json"
+manifest="custom_components/exicom_spin_ble/manifest.json"
 cd "$repo"
 
 if [ -n "$(git status --porcelain)" ]; then

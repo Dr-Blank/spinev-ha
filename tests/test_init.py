@@ -10,7 +10,10 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 
 from .const import ADDRESS
-from custom_components.spinev.const import CONF_CONNECTION_MODE, MODE_PERSISTENT
+from custom_components.exicom_spin_ble.const import (
+    CONF_CONNECTION_MODE,
+    MODE_PERSISTENT,
+)
 
 
 @pytest.mark.usefixtures("mock_charger", "mock_ble_device")

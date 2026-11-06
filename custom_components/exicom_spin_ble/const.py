@@ -5,7 +5,7 @@ from typing import Final
 
 from homeassistant.const import Platform
 
-DOMAIN: Final = "spinev"
+DOMAIN: Final = "exicom_spin_ble"
 
 MANUFACTURER: Final = "Exicom"
 MODEL: Final = "Spin"
