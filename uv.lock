@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14.2"
 resolution-markers = [
     "python_full_version >= '3.15' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
@@ -2629,11 +2629,11 @@ wheels = [
 
 [[package]]
 name = "spinev-ble"
-version = "0.5.1"
+version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/7e/69/76a7c3e6deb0f41d2d38c01e8d769bff526a0d303c9c57d1b6678269a1cb/spinev_ble-0.5.1.tar.gz", hash = "sha256:11fb1f565aefbfc4d7c3af967be7c096dbb6656ec30115c55f7bd2165a977c77", size = 54590, upload-time = "2026-10-24T07:53:41.848Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/49/1d/bb11859fc1d770523aa391d7be30ac301fe67283b8f895a5fedce8cb4d89/spinev_ble-0.7.0.tar.gz", hash = "sha256:b673e1cfdd338d3a4a1c17959b67e715160e1e3b8e2c18db656408f28f511c6c", size = 57188, upload-time = "2026-11-06T03:51:42.19Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5b/77/34bb84fe4ba356bfd1272a3bbd638dbec52c4a29ab215ec85f2ecfcae954/spinev_ble-0.5.1-py3-none-any.whl", hash = "sha256:7f1da317f130bbf80f90eb9e316edcf1d49d34f7d6644055adbf13cbcfc923dd", size = 42857, upload-time = "2026-10-24T07:53:40.424Z" },
+    { url = "https://files.pythonhosted.org/packages/9f/aa/4bb9b54707b20120ecf84f52f00be918eb54ce53610fe4688943b1e345b9/spinev_ble-0.7.0-py3-none-any.whl", hash = "sha256:e59137dca5fece290d72ae6cadc559d49a6331ecbfbaaccda9fdd7dcc8b309f0", size = 44537, upload-time = "2026-11-06T03:51:40.665Z" },
 ]
 
 [package.optional-dependencies]
@@ -2675,7 +2675,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "ocpp-csms", specifier = "==0.1.0" },
-    { name = "spinev-ble", extras = ["bleak"], specifier = "==0.5.1" },
+    { name = "spinev-ble", extras = ["bleak"], specifier = "==0.7.0" },
 ]
 
 [package.metadata.requires-dev]
