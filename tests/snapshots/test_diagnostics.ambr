@@ -21,6 +21,17 @@
       'source': 1,
     }),
     'random_delay_s': 0,
+    'recent_events': list([
+      dict({
+        'alarms': list([
+        ]),
+        'event': 'state_changed',
+        'from_state': None,
+        'to_state': 'CHARGING',
+        'vehicle_connected': True,
+        'voltage_v': 230.0,
+      }),
+    ]),
     'status': dict({
       'alarms': list([
       ]),
@@ -36,5 +47,6 @@
       'state_value': 4,
       'voltage_v': 230.0,
     }),
+    'vehicle_connected': True,
   })
 # ---

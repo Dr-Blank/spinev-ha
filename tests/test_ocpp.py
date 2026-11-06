@@ -12,11 +12,11 @@ from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
     async_fire_time_changed,
 )
-from spinev_ble import OcppTunnelTransport
+from spinev_ble import ChargerState, ChargerStatus, OcppTunnelTransport
 
 from homeassistant.components.bluetooth import BluetoothServiceInfoBleak
 from homeassistant.config_entries import SOURCE_BLUETOOTH, ConfigEntryState
-from homeassistant.const import CONF_HOST, STATE_UNAVAILABLE
+from homeassistant.const import CONF_HOST, STATE_OFF, STATE_ON, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
 
 from .conftest import ConnectCharger
@@ -35,6 +35,7 @@ from custom_components.exicom_spin_ble.hub import async_get_hub
 
 STATE_SENSOR = "sensor.123456789012_state"
 CONNECTION_TYPE_SENSOR = "sensor.123456789012_connection_type"
+VEHICLE_CONNECTED = "binary_sensor.123456789012_vehicle_connected"
 
 
 @pytest.fixture
@@ -73,7 +74,9 @@ async def ocpp_integration(
     return ocpp_entry
 
 
-async def send_status(socket: ClientWebSocketResponse, status: str) -> None:
+async def send_status(
+    socket: ClientWebSocketResponse, status: str, connector_id: int = 1
+) -> None:
     """Report a connector status from the charger and read the answer."""
     await socket.send_str(
         json.dumps(
@@ -81,11 +84,24 @@ async def send_status(socket: ClientWebSocketResponse, status: str) -> None:
                 2,
                 "1",
                 "StatusNotification",
-                {"connectorId": 1, "errorCode": "NoError", "status": status},
+                {"connectorId": connector_id, "errorCode": "NoError", "status": status},
             ]
         )
     )
     await socket.receive()
+
+
+async def async_enter_fault(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    mock_charger: AsyncMock,
+    before: ChargerState,
+) -> None:
+    """Read a state that shows the plug, then a fault that does not."""
+    for state in (before, ChargerState.FAULT):
+        mock_charger.async_get_status.return_value = ChargerStatus(state=state)
+        await entry.runtime_data.async_refresh()
+    await hass.async_block_till_done()
 
 
 async def test_setup_tunnels_through_ocpp(
@@ -155,6 +171,92 @@ async def test_status_from_the_charger_refreshes(
     await hass.async_block_till_done(wait_background_tasks=True)
 
     mock_charger.async_get_status.assert_awaited()
+
+
+@pytest.mark.parametrize(
+    ("before", "status", "connector_id", "expected"),
+    [
+        pytest.param(ChargerState.CHARGING, "Available", 1, STATE_OFF, id="removed"),
+        pytest.param(ChargerState.AVAILABLE, "Preparing", 1, STATE_ON, id="preparing"),
+        pytest.param(ChargerState.AVAILABLE, "Charging", 1, STATE_ON, id="charging"),
+        pytest.param(ChargerState.AVAILABLE, "SuspendedEV", 1, STATE_ON, id="susp_ev"),
+        pytest.param(
+            ChargerState.AVAILABLE, "SuspendedEVSE", 1, STATE_ON, id="susp_evse"
+        ),
+        pytest.param(ChargerState.CHARGING, "Faulted", 1, STATE_ON, id="faulted_on"),
+        pytest.param(ChargerState.AVAILABLE, "Faulted", 1, STATE_OFF, id="faulted_off"),
+        pytest.param(ChargerState.CHARGING, "Finishing", 1, STATE_ON, id="finishing"),
+        pytest.param(ChargerState.AVAILABLE, "Reserved", 1, STATE_OFF, id="reserved"),
+        pytest.param(
+            ChargerState.AVAILABLE, "Unavailable", 1, STATE_OFF, id="unavailable"
+        ),
+        pytest.param(ChargerState.CHARGING, "Available", 0, STATE_ON, id="whole_off"),
+        pytest.param(ChargerState.AVAILABLE, "Preparing", 0, STATE_OFF, id="whole_on"),
+    ],
+)
+async def test_a_connector_status_sets_the_plug_state_during_a_fault(
+    hass: HomeAssistant,
+    ocpp_integration: MockConfigEntry,
+    mock_charger: AsyncMock,
+    charger_socket: ClientWebSocketResponse,
+    before: ChargerState,
+    status: str,
+    connector_id: int,
+    expected: str,
+) -> None:
+    """Only a status of the charging connector that shows the plug counts."""
+    await async_enter_fault(hass, ocpp_integration, mock_charger, before)
+
+    await send_status(charger_socket, status, connector_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert hass.states.get(VEHICLE_CONNECTED).state == expected
+    event = next(
+        event
+        for event in reversed(ocpp_integration.runtime_data.events)
+        if event["event"] == "connector_status"
+    )
+    assert event["status"] == status
+    assert event["connector_id"] == connector_id
+
+
+async def test_a_connector_status_reaches_the_entity_without_a_refresh(
+    hass: HomeAssistant,
+    ocpp_integration: MockConfigEntry,
+    mock_charger: AsyncMock,
+    charger_socket: ClientWebSocketResponse,
+) -> None:
+    """The refresh it prompts may be held back or fail, so it is not relied on."""
+    await async_enter_fault(
+        hass, ocpp_integration, mock_charger, ChargerState.AVAILABLE
+    )
+
+    with patch.object(ocpp_integration.runtime_data, "async_request_refresh"):
+        await send_status(charger_socket, "Preparing")
+        await hass.async_block_till_done()
+
+    assert hass.states.get(VEHICLE_CONNECTED).state == STATE_ON
+
+
+async def test_a_state_that_shows_the_plug_overrides_a_connector_status(
+    hass: HomeAssistant,
+    ocpp_integration: MockConfigEntry,
+    mock_charger: AsyncMock,
+    charger_socket: ClientWebSocketResponse,
+) -> None:
+    """A poll outside a fault has the final say on the plug state."""
+    await async_enter_fault(hass, ocpp_integration, mock_charger, ChargerState.CHARGING)
+    await send_status(charger_socket, "Available")
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert hass.states.get(VEHICLE_CONNECTED).state == STATE_OFF
+
+    mock_charger.async_get_status.return_value = ChargerStatus(
+        state=ChargerState.CHARGING
+    )
+    await ocpp_integration.runtime_data.async_refresh()
+    await hass.async_block_till_done()
+
+    assert hass.states.get(VEHICLE_CONNECTED).state == STATE_ON
 
 
 async def test_a_lost_connection_makes_the_charger_unavailable(

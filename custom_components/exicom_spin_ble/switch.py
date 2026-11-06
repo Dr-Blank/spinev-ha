@@ -64,7 +64,8 @@ class SpinEvChargingSwitch(SpinEvEntity, SwitchEntity):
                 translation_domain=DOMAIN,
                 translation_key="charger_booting",
             )
-        if state is None or not state.has_vehicle:
+        # A fault cannot tell whether a vehicle is present, so the charger decides.
+        if state is None or state.has_vehicle is False:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="no_vehicle_connected",

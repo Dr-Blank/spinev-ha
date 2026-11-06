@@ -23,7 +23,7 @@ single phase Spin Air. Three phase units report the same registers.
 | State | Available, Idle, Starting, Charging, Paused by charger, Paused by vehicle, Finishing, Fault, Starting up or Unavailable |
 | Charging (binary sensor) | On while power is flowing or about to |
 | Charging (switch) | Start and stop charging. On for the whole session, including while it is paused |
-| Vehicle connected | On while a vehicle is plugged in |
+| Vehicle connected | On while a vehicle is plugged in. A fault doesn't show the plug state, so this keeps its last value, including across a restart, and is off if it has none. Over OCPP, a status the charger sends for its connector can still update it |
 | Session suspended | On while a session is open but paused, by either end. Diagnostic |
 | Problem | On while the charger reports an alarm, with the alarm names as an attribute |
 | Power | Active power, in watts |
@@ -183,6 +183,10 @@ It prints the current settings first, so note them to put them back later. Once 
 **Entities go unavailable during charging.** The link is being dropped, most
 often because of range or because the phone app took it. Move a Bluetooth
 proxy closer, or switch the connection mode to **Stay connected**.
+
+**Reporting a problem.** Attach the diagnostics from **Settings > Devices & services > Spin EV Charger > ⋮ > Download diagnostics**, soon after the problem and before restarting Home Assistant. They need no setup, and list recent state and alarm changes, OCPP connector statuses, commands and failed polls. They are held in memory, so a restart clears them.
+
+If more detail is needed, turn on **Enable debug logging** on the same page. The log then shows every register request by name, plus each decoded reading. Values travel only in the decoded readings, never in the request lines. The `ocpp_csms.wire` logger is rarely needed: it records full OCPP messages, which can include credentials, so redact its output before sharing it.
 
 ## Built on
 

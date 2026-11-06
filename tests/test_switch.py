@@ -95,6 +95,23 @@ async def test_starting_is_refused_when_it_could_only_do_nothing(
     mock_charger.async_start_charging.assert_not_awaited()
 
 
+@pytest.mark.usefixtures("mock_ble_device")
+async def test_starting_during_a_fault_is_left_to_the_charger(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry, mock_charger: AsyncMock
+) -> None:
+    """A fault cannot tell whether a vehicle is present, so the start is sent."""
+    mock_charger.async_get_status.return_value = ChargerStatus(state=ChargerState.FAULT)
+    mock_config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(mock_config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    await hass.services.async_call(
+        "switch", "turn_on", {"entity_id": CHARGING_SWITCH}, blocking=True
+    )
+
+    mock_charger.async_start_charging.assert_awaited_once()
+
+
 async def test_stopping_a_charge(
     hass: HomeAssistant, init_integration: MockConfigEntry, mock_charger: AsyncMock
 ) -> None:
